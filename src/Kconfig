@@ -1,0 +1,38 @@
+menu "ESP32 Firmware Core"
+
+config CORE_AP_SSID
+    string "Default AP SSID"
+    default "ESP32-Core-Setup"
+
+config CORE_AP_OPEN
+    bool "Start AP as open network (no password)"
+    default y
+
+config CORE_CAPTIVE_PORTAL_ENABLE
+    bool "Enable captive portal"
+    default y
+
+config CORE_AP_DHCP_ENABLE
+    bool "Enable DHCP server on AP"
+    default y
+
+config CORE_LOG_LEVEL
+    int "Default log level (0=NONE,1=ERROR,2=WARN,3=INFO,4=DEBUG,5=VERBOSE)"
+    range 0 5
+    default 3
+
+config CORE_BLE_SCAN_ENABLE
+    bool "Enable BLE scanning"
+    default y
+
+config CORE_BLE_SCAN_INTERVAL_MS
+    int "BLE scan interval (ms)"
+    range 100 600000
+    default 5000
+
+config CORE_STATUS_API_ENABLE
+    bool "Enable Status/API endpoints"
+    default y
+
+endmenu
+
