@@ -32,10 +32,50 @@ Instead of starting from scratch for each project, this repository aims to provi
 
 This section will be extended over time.
 
-- Feature 1
-- Feature 2
-- Feature 3
-- Feature 4
+* WiFi Provisioning (AP + STA)
+    * SoftAP for initial setup
+    * Parallel APSTA operation
+    * Persistent WiFi credentials (NVS)
+* Cross-Platform Captive Portal
+    * DNS hijacking (UDP/53)
+    * OS-specific probe handling
+    * Automatic redirect to portal UI
+* Embedded HTTP Server
+    * ESP-IDF esp_http_server
+    * JSON + form data handling
+    * Centralized request helpers
+* REST API
+    * Device status endpoints
+    * WiFi configuration endpoints
+    * System control (reboot)
+* Persistent Storage (NVS)
+    * Key-value based persistence
+    * Locations and settings stored
+    * Safe read/write handling
+* Location Management
+    * Add / list / delete locations
+    * Duplicate prevention & limits
+    * Persistent active location
+* Public Weather Integration
+    * Open-Meteo REST API
+    * Current weather & forecast
+    * Timezone-aware data
+* HTTPS / TLS Networking
+    * esp_http_client over HTTPS
+    * ESP-IDF certificate bundle
+    * No insecure TLS modes
+* JSON Processing
+    * Parsing with cJSON
+    * Explicit validation & errors
+    * Robust against partial data
+* System Architecture
+    * Plain C (ESP-IDF native)
+    * Modular, service-oriented design
+    * Refactor & tests planned
+* Configuration Model
+    * Build-time via Kconfig
+    * Runtime via REST API
+    * No .env or hardcoded secrets
 
 ---
 
