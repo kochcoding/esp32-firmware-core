@@ -1,9 +1,6 @@
 #include <unity.h>
 
-#include "test_smoke.c"
-
-// forward declaration of your tests
-void test_smoke_runs(void);
+#include "test_api.h"
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -11,6 +8,10 @@ void tearDown(void) {}
 int main(void)
 {
     UNITY_BEGIN();
-    RUN_TEST(test_smoke_runs);
+
+    run_smoke_tests();
+
+    run_domain_locations_model_tests();
+
     return UNITY_END();
 }
