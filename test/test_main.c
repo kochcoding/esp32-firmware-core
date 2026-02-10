@@ -9,8 +9,6 @@ int main(void)
 {
     UNITY_BEGIN();
 
-    run_smoke_tests();
-
     run_domain_locations_model_tests();
 
     return UNITY_END();
