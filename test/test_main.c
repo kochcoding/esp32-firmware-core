@@ -9,7 +9,7 @@ int main(void)
 {
     UNITY_BEGIN();
 
-    run_domain_locations_model_tests();
+    run_test_domain_locations_model_add();
 
     return UNITY_END();
 }
