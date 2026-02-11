@@ -33,17 +33,27 @@ static location_t make_loc(const char *name, double lat, double lon, bool active
     return loc;
 }
 
+static void assert_model_invariants(const locations_model_t *m)
+{
+    TEST_ASSERT_NOT_NULL(m);
+    TEST_ASSERT_TRUE(m->count <= (size_t)LOCATIONS_MODEL_MAX_NUMBER);
+
+    for (size_t i = 0U; i < m->count; i++)
+    {
+        for (size_t j = i + 1U; j < m->count; j++)
+        {
+            /* names must be unique */
+            TEST_ASSERT_NOT_EQUAL(0, strcmp(m->items[i].name, m->items[j].name));
+        }
+    }
+}
 /*
     locations_model_add
 */
 
 static void test_add_success(void)
 {
-    location_t loc = {
-        .name = "Berlin",
-        .latitude = 52.52,
-        .longitude = 13.405,
-        .is_active = false};
+    location_t loc = make_loc("Berlin", 52.52, 13.405, false);
 
     bool result = locations_model_add(&model, &loc);
 
@@ -54,11 +64,7 @@ static void test_add_success(void)
 
 static void test_add_duplicate_fails(void)
 {
-    location_t loc = {
-        .name = "Berlin",
-        .latitude = 52.52,
-        .longitude = 13.405,
-        .is_active = false};
+    location_t loc = make_loc("Berlin", 52.52, 13.405, false);
 
     TEST_ASSERT_TRUE(locations_model_add(&model, &loc));
     TEST_ASSERT_FALSE(locations_model_add(&model, &loc));
@@ -67,11 +73,7 @@ static void test_add_duplicate_fails(void)
 
 static void test_add_null_model_fails(void)
 {
-    location_t loc = {
-        .name = "Berlin",
-        .latitude = 52.52,
-        .longitude = 13.405,
-        .is_active = false};
+    location_t loc = make_loc("Berlin", 52.52, 13.405, false);
 
     bool result = locations_model_add(NULL, &loc);
 
@@ -103,11 +105,7 @@ static void test_add_when_full_fails(void)
     TEST_ASSERT_EQUAL_UINT32((uint32_t)LOCATIONS_MODEL_MAX_NUMBER, (uint32_t)model.count);
 
     // one more must fails
-    location_t extra = {
-        .name = "Overflow",
-        .latitude = 0.0,
-        .longitude = 0.0,
-        .is_active = false};
+    location_t extra = make_loc("Overflow", 0.0, 0.0, false);
 
     bool result = locations_model_add(&model, &extra);
     TEST_ASSERT_FALSE(result);
@@ -118,17 +116,9 @@ static void test_add_when_full_fails(void)
 
 static void test_add_duplicate_has_no_side_effects(void)
 {
-    location_t loc1 = {
-        .name = "Berlin",
-        .latitude = 52.52,
-        .longitude = 13.405,
-        .is_active = false};
+    location_t loc1 = make_loc("Berlin", 52.52, 13.405, false);
 
-    location_t loc2_same_name_different_data = {
-        .name = "Berlin", /* same name => duplicate */
-        .latitude = 1.0,  /* different values to detect overwrite */
-        .longitude = 2.0,
-        .is_active = true};
+    location_t loc2_same_name_different_data = make_loc("Berlin", 1.0, 2.0, false);
 
     TEST_ASSERT_TRUE(locations_model_add(&model, &loc1));
     TEST_ASSERT_EQUAL_UINT32(1U, model.count);
@@ -230,6 +220,72 @@ static void test_remove_active_clears_all_active_flags(void)
     TEST_ASSERT_NULL(active);
 }
 
+static void test_remove_first_item_shifts_correctly(void)
+{
+    location_t a = make_loc("A", 1.0, 1.0, false);
+    location_t b = make_loc("B", 2.0, 2.0, false);
+    location_t c = make_loc("C", 3.0, 3.0, false);
+
+    TEST_ASSERT_TRUE(locations_model_add(&model, &a));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &b));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &c));
+
+    TEST_ASSERT_TRUE(locations_model_remove(&model, "A"));
+
+    TEST_ASSERT_EQUAL_UINT32(2U, (uint32_t)model.count);
+    TEST_ASSERT_EQUAL_STRING("B", model.items[0].name);
+    TEST_ASSERT_EQUAL_STRING("C", model.items[1].name);
+}
+
+static void test_remove_last_item_does_not_shift_others(void)
+{
+    location_t a = make_loc("A", 1.0, 1.0, false);
+    location_t b = make_loc("B", 2.0, 2.0, false);
+    location_t c = make_loc("C", 3.0, 3.0, false);
+
+    TEST_ASSERT_TRUE(locations_model_add(&model, &a));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &b));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &c));
+
+    TEST_ASSERT_TRUE(locations_model_remove(&model, "C"));
+
+    TEST_ASSERT_EQUAL_UINT32(2U, (uint32_t)model.count);
+    TEST_ASSERT_EQUAL_STRING("A", model.items[0].name);
+    TEST_ASSERT_EQUAL_STRING("B", model.items[1].name);
+}
+
+static void test_remove_single_item_results_in_empty_model(void)
+{
+    location_t a = make_loc("A", 1.0, 1.0, false);
+    TEST_ASSERT_TRUE(locations_model_add(&model, &a));
+
+    TEST_ASSERT_TRUE(locations_model_remove(&model, "A"));
+
+    TEST_ASSERT_EQUAL_UINT32(0U, (uint32_t)model.count);
+    TEST_ASSERT_NULL(locations_model_get_active(&model));
+}
+
+static void test_remove_inactive_keeps_existing_active(void)
+{
+    location_t a = make_loc("A", 1.0, 1.0, false);
+    location_t b = make_loc("B", 2.0, 2.0, false);
+    location_t c = make_loc("C", 3.0, 3.0, false);
+
+    TEST_ASSERT_TRUE(locations_model_add(&model, &a));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &b));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &c));
+
+    /* mark B active */
+    model.items[1].is_active = true;
+
+    /* remove inactive C */
+    TEST_ASSERT_TRUE(locations_model_remove(&model, "C"));
+
+    const location_t *active = locations_model_get_active(&model);
+    TEST_ASSERT_NOT_NULL(active);
+    TEST_ASSERT_EQUAL_STRING("B", active->name);
+}
+
 /*
     locations_model_get_active
 */
@@ -267,6 +323,38 @@ static void test_get_active_returns_first_active(void)
 
     TEST_ASSERT_NOT_NULL(active);
     TEST_ASSERT_EQUAL_STRING("A", active->name);
+}
+
+/*
+    invariant tests
+*/
+
+static void test_sequence_add_remove_add_keeps_invariants(void)
+{
+    location_t a = make_loc("A", 1.0, 1.0, false);
+    location_t b = make_loc("B", 2.0, 2.0, false);
+    location_t c = make_loc("C", 3.0, 3.0, false);
+    location_t d = make_loc("D", 4.0, 4.0, false);
+    location_t e = make_loc("E", 5.0, 5.0, false);
+
+    TEST_ASSERT_TRUE(locations_model_add(&model, &a));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &b));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &c));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &d));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &e));
+
+    assert_model_invariants(&model);
+
+    /* remove middle + first + unknown */
+    TEST_ASSERT_TRUE(locations_model_remove(&model, "C"));
+    TEST_ASSERT_TRUE(locations_model_remove(&model, "A"));
+    TEST_ASSERT_FALSE(locations_model_remove(&model, "Z"));
+
+    assert_model_invariants(&model);
+
+    /* re-add previously removed(should succeed again) */
+    TEST_ASSERT_TRUE(locations_model_add(&model, &c));
+    TEST_ASSERT_TRUE(locations_model_add(&model, &a));
 }
 
 /*
@@ -327,6 +415,18 @@ void run_test_domain_locations_model_remove(void)
     reset_model();
     RUN_TEST(test_remove_active_clears_all_active_flags);
 
+    reset_model();
+    RUN_TEST(test_remove_first_item_shifts_correctly);
+
+    reset_model();
+    RUN_TEST(test_remove_last_item_does_not_shift_others);
+
+    reset_model();
+    RUN_TEST(test_remove_single_item_results_in_empty_model);
+
+    reset_model();
+    RUN_TEST(test_remove_inactive_keeps_existing_active);
+
     UNITY_OUTPUT_CHAR('\n');
 }
 
@@ -347,6 +447,18 @@ void run_test_domain_locations_model_get_active(void)
 
     reset_model();
     RUN_TEST(test_get_active_returns_first_active);
+
+    UNITY_OUTPUT_CHAR('\n');
+}
+
+void run_test_domain_locations_model_invariants(void)
+{
+    UnityPrint("=== domain/locations_model : invariants ===");
+    UNITY_OUTPUT_CHAR('\n');
+    UNITY_OUTPUT_CHAR('\n');
+
+    reset_model();
+    RUN_TEST(test_sequence_add_remove_add_keeps_invariants);
 
     UNITY_OUTPUT_CHAR('\n');
 }
