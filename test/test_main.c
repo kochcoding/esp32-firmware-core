@@ -19,5 +19,13 @@ int main(void)
     run_test_storage_locations_storage_from_json();
     run_test_storage_locations_storage_to_json_and_measure_json();
 
+    /* storage/settings_storage */
+    run_test_storage_settings_storage_wifi_from_json();
+    run_test_storage_settings_storage_wifi_to_json_and_measure_json();
+
+    /* storage/weather_storage */
+    run_test_storage_weather_storage_validate_json();
+    run_test_storage_weather_storage_compact_json_and_measure_json();
+
     return UNITY_END();
 }
