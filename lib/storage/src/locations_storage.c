@@ -48,7 +48,7 @@ static bool read_location_object(const cJSON *obj, location_t *out_loc)
     return ok;
 }
 
-bool locations_storage_from_json(const char *json, locations_model_t *out_model)
+bool   locations_storage_from_json(const char *json, locations_model_t *out_model)
 {
     bool return_value = false;
 

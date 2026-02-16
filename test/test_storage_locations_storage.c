@@ -65,20 +65,20 @@ static void test_from_json_invalid_json_fails(void)
 {
     const char *json = "{ this is not json }";
 
-    locations_model_t *model;
-    reset_model(model);
+    locations_model_t model;
+    reset_model(&model);
 
-    TEST_ASSERT_FALSE(locations_storage_from_json(json, model));
+    TEST_ASSERT_FALSE(locations_storage_from_json(json, &model));
 }
 
 static void test_from_json_missing_locations_array_fails(void)
 {
     const char *json = "{\"foo\":123}";
 
-    locations_model_t *model;
-    reset_model(model);
+    locations_model_t model;
+    reset_model(&model);
 
-    TEST_ASSERT_FALSE(locations_storage_from_json(json, model));
+    TEST_ASSERT_FALSE(locations_storage_from_json(json, &model));
 }
 
 static void test_from_json_multiple_active_keeps_first_only(void)
