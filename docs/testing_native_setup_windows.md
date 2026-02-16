@@ -152,7 +152,7 @@ Solution: Ensure in `[env:native]`:
 If build artifacts cause issues:
 
     pio run -t clean -e native
-    pio test -e native
+    pio test -e native -v
 
 ------------------------------------------------------------------------
 
