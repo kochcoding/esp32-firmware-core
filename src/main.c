@@ -81,17 +81,6 @@ void app_main(void)
     // STA subsystem (AP stays active)
     ESP_ERROR_CHECK(wifi_sta_init());
 
-    esp_err_t err = wifi_sta_connect_from_nvs();
-    if (err == ESP_ERR_NOT_FOUND)
-    {
-        ESP_LOGW("main", "No WiFi creds in NVS yet -> staying in captive portal mode");
-        // NICHT aborten. Einfach weiterlaufen lassen: SoftAP + captive portal bleibt aktiv.
-    }
-    else
-    {
-        ESP_ERROR_CHECK(err);
-    }
-
     // HTTP server (Web UI / endpoints)
     http_server_start();
 
@@ -103,6 +92,17 @@ void app_main(void)
 #else
     ESP_LOGI(TAG, "Captive portal: OFF");
 #endif
+
+    esp_err_t err = wifi_sta_connect_from_nvs();
+    if (err == ESP_ERR_NOT_FOUND)
+    {
+        ESP_LOGW("main", "No WiFi creds in NVS yet -> staying in captive portal mode");
+        // NICHT aborten. Einfach weiterlaufen lassen: SoftAP + captive portal bleibt aktiv.
+    }
+    else
+    {
+        ESP_ERROR_CHECK(err);
+    }
 
     ESP_LOGI(TAG, "Services started. Entering main loop.");
 
