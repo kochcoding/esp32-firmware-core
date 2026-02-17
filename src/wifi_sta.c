@@ -7,7 +7,8 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "esp_timer.h"
-#include "nvs.h"
+
+#include "app/app_settings_persistence.h"
 
 #include "lwip/inet.h"
 
@@ -130,41 +131,51 @@ static void ip_event_handler(void *arg,
     }
 }
 
-/**
- * Switch mode AP -> APSTA safely while preserving current AP config.
- * Then apply STA config and connect.
- */
 static esp_err_t apply_and_connect_sta(const char *ssid, const char *pass)
 {
-    wifi_config_t ap_cfg = {0};
-    esp_err_t err = esp_wifi_get_config(WIFI_IF_AP, &ap_cfg);
+    if ((ssid == NULL) ||
+        (ssid[0] == '\0') ||
+        (pass == NULL))
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // We require APSTA to be set by wifi_init_ap() once at boot.
+    wifi_mode_t mode = WIFI_MODE_NULL;
+    esp_err_t err = esp_wifi_get_mode(&mode);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "esp_wifi_get_config(AP) failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "esp_wifi_get_mode failed: %s", esp_err_to_name(err));
         return err;
     }
 
+    if (mode != WIFI_MODE_APSTA)
+    {
+        ESP_LOGE(TAG, "WiFi mode is %d, expected APSTA. "
+                      "Do NOT switch mode here (would stop AP).",
+                 (int)mode);
+        return ESP_ERR_INVALID_STATE;
+    }
+
     wifi_config_t sta_cfg = {0};
+
     strncpy((char *)sta_cfg.sta.ssid, ssid, sizeof(sta_cfg.sta.ssid));
     sta_cfg.sta.ssid[sizeof(sta_cfg.sta.ssid) - 1] = '\0';
 
     strncpy((char *)sta_cfg.sta.password, pass, sizeof(sta_cfg.sta.password));
     sta_cfg.sta.password[sizeof(sta_cfg.sta.password) - 1] = '\0';
 
-    wifi_mode_t mode;
-    ESP_ERROR_CHECK(esp_wifi_get_mode(&mode));
-    if (mode != WIFI_MODE_APSTA)
-    {
-        (void)esp_wifi_stop();
-        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-        ESP_ERROR_CHECK(esp_wifi_start());
-    }
-
-    // alte Verbindung sauber trennen (falls irgendein Zombie-State)
+    // ensure we start from a clean state
     (void)esp_wifi_disconnect();
 
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg));
-    return esp_wifi_connect();
+    err = esp_wifi_set_config(WIFI_IF_STA, &sta_cfg);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_wifi_set_config(STA) failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    return esp_wifi_connect(); // async
 }
 
 esp_err_t wifi_sta_init(void)
@@ -209,46 +220,23 @@ esp_err_t wifi_sta_init(void)
 
 esp_err_t wifi_sta_connect_from_nvs(void)
 {
-    char ssid[33] = {0};
-    char pass[65] = {0};
+    settings_wifi_t s;
+    esp_err_t err = app_settings_load_wifi(&s);
 
-    nvs_handle_t nvs;
-    esp_err_t err = nvs_open("cfg", NVS_READONLY, &nvs);
-    if (err != ESP_OK)
-    {
-        ESP_LOGW(TAG, "NVS open(cfg) failed: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    size_t ssid_len = sizeof(ssid);
-    size_t pass_len = sizeof(pass);
-
-    esp_err_t e1 = nvs_get_str(nvs, "sta_ssid", ssid, &ssid_len);
-    esp_err_t e2 = nvs_get_str(nvs, "sta_pass", pass, &pass_len);
-
-    nvs_close(nvs);
-
-    if (e1 != ESP_OK || ssid[0] == '\0')
+    if (err == ESP_ERR_NOT_FOUND || s.ssid[0] == '\0')
     {
         ESP_LOGI(TAG, "No STA SSID stored; staying in AP-only mode");
         s_status.state = WIFI_STA_STATE_IDLE;
-        return ESP_OK;
+        return ESP_ERR_NOT_FOUND;
     }
 
-    // pass missing is fine -> empty
-    if (e2 != ESP_OK)
-        pass[0] = '\0';
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to load WiFi settings: %s", esp_err_to_name(err));
+        return err;
+    }
 
-    strncpy(s_status.ssid, ssid, sizeof(s_status.ssid));
-    s_status.ssid[sizeof(s_status.ssid) - 1] = '\0';
-    memset(s_status.ip, 0, sizeof(s_status.ip));
-    s_status.retry_count = 0;
-    s_status.state = WIFI_STA_STATE_CONNECTING;
-
-    ESP_LOGI(TAG, "Starting STA connect to SSID='%s' (pass_len=%u)",
-             s_status.ssid, (unsigned)strlen(pass));
-
-    return apply_and_connect_sta(ssid, pass);
+    return wifi_sta_connect(s.ssid, s.pass);
 }
 
 esp_err_t wifi_sta_connect(const char *ssid, const char *pass)

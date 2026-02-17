@@ -7,7 +7,7 @@
 #include "esp_mac.h"
 
 #include "wifi_ap.h"
-#include "http_server.h"
+#include "http/http_server.h"
 #include "core_config.h"
 
 #if CORE_CAPTIVE_PORTAL_ENABLED
@@ -15,7 +15,7 @@
 #include "lwip/inet.h" // inet_addr()
 #endif
 
-#include "nvs.h"
+#include "esp_err.h"
 
 #include "wifi_sta.h"
 
@@ -82,7 +82,7 @@ void app_main(void)
     ESP_ERROR_CHECK(wifi_sta_init());
 
     esp_err_t err = wifi_sta_connect_from_nvs();
-    if (err == ESP_ERR_NVS_NOT_FOUND)
+    if (err == ESP_ERR_NOT_FOUND)
     {
         ESP_LOGW("main", "No WiFi creds in NVS yet -> staying in captive portal mode");
         // NICHT aborten. Einfach weiterlaufen lassen: SoftAP + captive portal bleibt aktiv.
