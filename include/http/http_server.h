@@ -1,12 +1,6 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#include "esp_err.h"
 
-    void http_server_start(void);
-
-#ifdef __cplusplus
-}
-#endif
+esp_err_t http_server_start(void);
+void http_server_stop(void);
