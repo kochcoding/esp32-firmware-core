@@ -118,11 +118,20 @@ static esp_err_t save_post_handler(httpd_req_t *req)
     return httpd_resp_sendstr(req, "<html><body><h3>Saved.</h3>You can close this page.</body></html>");
 }
 
+static esp_err_t favicon_handler(httpd_req_t *req)
+{
+    httpd_resp_set_status(req, "204 No Content");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 static const httpd_uri_t uri_index = {.uri = "/", .method = HTTP_GET, .handler = index_get_handler};
 static const httpd_uri_t uri_save = {.uri = "/save", .method = HTTP_POST, .handler = save_post_handler};
+static const httpd_uri_t uri_favicon = {.uri = "/favicon.ico", .method = HTTP_GET, .handler = favicon_handler};
 
 void ui_routes_register(httpd_handle_t server)
 {
     httpd_register_uri_handler(server, &uri_index);
     httpd_register_uri_handler(server, &uri_save);
+    httpd_register_uri_handler(server, &uri_favicon);
 }
