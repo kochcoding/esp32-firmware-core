@@ -28,26 +28,39 @@ static esp_err_t api_wifi_get(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // Passwort wird bewusst nicht zurückgegeben – nur Länge
-    ESP_LOGI(TAG, "GET wifi config: SSID='%s' (password withheld)", s.ssid);
-    const size_t needed = settings_storage_wifi_measure_json(&s, false);
-    char *buf = malloc(needed);
-    if (!buf)
+    // STA runtime status
+    // NOTE: JSON is built here as a deliberate pragmatic choice.
+    // A cleaner solution (wifi_sta_status_to_json) is planned for the
+    // architecture-polish branch (Punkt 7).
+    wifi_sta_status_t sta = wifi_sta_get_status();
+
+    const char *sta_state_str = "idle";
+    if (sta.state == WIFI_STA_STATE_CONNECTED)
+        sta_state_str = "connected";
+    else if (sta.state == WIFI_STA_STATE_CONNECTING)
+        sta_state_str = "connecting";
+    else if (sta.state == WIFI_STA_STATE_FAILED)
+        sta_state_str = "failed";
+
+    char ip_str[16] = {0};
+    if (sta.state == WIFI_STA_STATE_CONNECTED)
     {
-        http_send_err(req, 500, "oom");
-        return ESP_OK;
+        snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
+                 sta.ip[0], sta.ip[1], sta.ip[2], sta.ip[3]);
     }
 
-    if (!settings_storage_wifi_to_json(&s, false, buf, needed))
-    {
-        free(buf);
-        http_send_err(req, 500, "json_failed");
-        return ESP_OK;
-    }
+    char buf[256];
+    snprintf(buf, sizeof(buf),
+             "{\"ssid\":\"%s\",\"pass_len\":%u,\"sta_state\":\"%s\",\"ip\":\"%s\"}",
+             s.ssid,
+             (unsigned)strlen(s.pass),
+             sta_state_str,
+             ip_str);
+
+    ESP_LOGI(TAG, "GET wifi config: SSID='%s' (password withheld), sta=%s",
+             s.ssid, sta_state_str);
 
     http_send_json(req, 200, buf);
-    free(buf);
-
     return ESP_OK;
 }
 
