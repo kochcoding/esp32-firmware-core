@@ -46,7 +46,7 @@ esp_err_t app_settings_load_wifi(settings_wifi_t *out)
         return e1;
     }
 
-    if (e2 != ESP_ERR_NVS_NOT_FOUND)
+    if (e2 == ESP_ERR_NVS_NOT_FOUND)
     {
         out->pass[0] = '\0';
     }

@@ -133,10 +133,14 @@ static void ip_event_handler(void *arg,
 
 static esp_err_t apply_and_connect_sta(const char *ssid, const char *pass)
 {
-    if ((ssid == NULL) ||
-        (ssid[0] == '\0') ||
-        (pass == NULL))
+    if ((ssid == NULL) || (ssid[0] == '\0'))
     {
+        ESP_LOGE(TAG, "apply_and_connect_sta: SSID missing");
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (pass == NULL)
+    {
+        ESP_LOGE(TAG, "apply_and_connect_sta: pass is NULL");
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -249,6 +253,17 @@ esp_err_t wifi_sta_connect(const char *ssid, const char *pass)
 
     const char *pass_str = (pass ? pass : "");
 
+    if (pass_str[0] == '\0')
+    {
+        ESP_LOGW(TAG, "Starting STA connect to SSID='%s' (Open Network / no password)",
+                 ssid);
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Starting STA connect to SSID='%s' (pass_len=%u)",
+                 ssid, (unsigned)strlen(pass_str));
+    }
+
     // Stop any pending retry from a previous attempt.
     if (s_retry_timer)
     {
@@ -260,9 +275,6 @@ esp_err_t wifi_sta_connect(const char *ssid, const char *pass)
     memset(s_status.ip, 0, sizeof(s_status.ip));
     s_status.retry_count = 0;
     s_status.state = WIFI_STA_STATE_CONNECTING;
-
-    ESP_LOGI(TAG, "Starting STA connect to SSID='%s' (pass_len=%u)",
-             s_status.ssid, (unsigned)strlen(pass_str));
 
     return apply_and_connect_sta(ssid, pass_str);
 }
