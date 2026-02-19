@@ -28,7 +28,8 @@ static esp_err_t api_wifi_get(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // Nie Passwort zurückgeben – nur Länge
+    // Passwort wird bewusst nicht zurückgegeben – nur Länge
+    ESP_LOGI(TAG, "GET wifi config: SSID='%s' (password withheld)", s.ssid);
     const size_t needed = settings_storage_wifi_measure_json(&s, false);
     char *buf = malloc(needed);
     if (!buf)
@@ -75,12 +76,15 @@ static esp_err_t api_wifi_post(httpd_req_t *req)
         return ESP_OK;
     }
 
+    ESP_LOGI(TAG, "WiFi credentials saved: SSID='%s' (pass_len=%u)",
+             s.ssid, (unsigned)strlen(s.pass));
+
     esp_err_t conn_err = wifi_sta_connect(s.ssid, s.pass);
 
     if (conn_err == ESP_OK)
-        http_send_json(req, 201, "{\"ok\":true,\"connect_started\":true}");
+        http_send_json(req, 200, "{\"ok\":true,\"connect_started\":true}");
     else
-        http_send_json(req, 201, "{\"ok\":true,\"connect_started\":false}");
+        http_send_json(req, 200, "{\"ok\":true,\"connect_started\":false}");
 
     return ESP_OK;
 }
