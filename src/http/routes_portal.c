@@ -7,7 +7,6 @@ static const char *TAG = "routes_portal";
 // Redirect helper
 static esp_err_t redirect_to_root(httpd_req_t *req)
 {
-    ESP_LOGI(TAG, "redirect_to_root: method=%d uri=%s", req->method, req->uri);
     httpd_resp_set_status(req, "302 Found");
     httpd_resp_set_hdr(req, "Location", "/");
     httpd_resp_send(req, NULL, 0);
