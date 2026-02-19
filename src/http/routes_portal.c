@@ -7,6 +7,7 @@ static const char *TAG = "routes_portal";
 // Redirect helper
 static esp_err_t redirect_to_root(httpd_req_t *req)
 {
+    ESP_LOGI(TAG, "redirect_to_root: method=%d uri=%s", req->method, req->uri);
     httpd_resp_set_status(req, "302 Found");
     httpd_resp_set_hdr(req, "Location", "/");
     httpd_resp_send(req, NULL, 0);
@@ -31,21 +32,37 @@ static esp_err_t captive_404_handler(httpd_req_t *req, httpd_err_code_t err)
     return redirect_to_root(req);
 }
 
+// GET routes
 static const httpd_uri_t uri_generate_204 = {.uri = "/generate_204", .method = HTTP_GET, .handler = redirect_to_root};
 static const httpd_uri_t uri_hotspot_detect = {.uri = "/hotspot-detect.html", .method = HTTP_GET, .handler = redirect_to_root};
 static const httpd_uri_t uri_connecttest = {.uri = "/connecttest.txt", .method = HTTP_GET, .handler = redirect_to_root};
 static const httpd_uri_t uri_204 = {.uri = "/204", .method = HTTP_GET, .handler = redirect_to_root};
 static const httpd_uri_t uri_ipv6check = {.uri = "/ipv6check", .method = HTTP_GET, .handler = redirect_to_root};
 
+// HEAD routes
+static const httpd_uri_t uri_generate_204_head = {.uri = "/generate_204", .method = HTTP_HEAD, .handler = redirect_to_root};
+static const httpd_uri_t uri_hotspot_detect_head = {.uri = "/hotspot-detect.html", .method = HTTP_HEAD, .handler = redirect_to_root};
+static const httpd_uri_t uri_connecttest_head = {.uri = "/connecttest.txt", .method = HTTP_HEAD, .handler = redirect_to_root};
+static const httpd_uri_t uri_204_head = {.uri = "/204", .method = HTTP_HEAD, .handler = redirect_to_root};
+static const httpd_uri_t uri_ipv6check_head = {.uri = "/ipv6check", .method = HTTP_HEAD, .handler = redirect_to_root};
+
 void routes_portal_register(httpd_handle_t server)
 {
     ESP_LOGI(TAG, "register captive portal probe routes");
 
+    // GET
     httpd_register_uri_handler(server, &uri_generate_204);
     httpd_register_uri_handler(server, &uri_hotspot_detect);
     httpd_register_uri_handler(server, &uri_connecttest);
     httpd_register_uri_handler(server, &uri_204);
     httpd_register_uri_handler(server, &uri_ipv6check);
+
+    // HEAD
+    httpd_register_uri_handler(server, &uri_generate_204_head);
+    httpd_register_uri_handler(server, &uri_hotspot_detect_head);
+    httpd_register_uri_handler(server, &uri_connecttest_head);
+    httpd_register_uri_handler(server, &uri_204_head);
+    httpd_register_uri_handler(server, &uri_ipv6check_head);
 
     httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, captive_404_handler);
 }
