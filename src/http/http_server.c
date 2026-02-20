@@ -5,6 +5,7 @@
 
 #include "http/routes_portal.h"
 #include "http/routes_api_wifi.h"
+#include "http/routes_api_locations.h"
 #include "ui/ui_routes.h"
 
 static const char *TAG = "http_server";
@@ -43,6 +44,7 @@ esp_err_t http_server_start(void)
     routes_portal_register(s_server);
     ui_routes_register(s_server);
     routes_api_wifi_register(s_server);
+    routes_api_locations_register(s_server);
 
     ESP_LOGI(TAG, "HTTP server started. Open http://192.168.4.1/");
 
