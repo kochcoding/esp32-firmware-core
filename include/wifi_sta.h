@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// out_buf must be at least WIFI_STA_STATUS_JSON_BUF_SIZE bytes
+#define WIFI_STA_STATUS_JSON_BUF_SIZE 128
+
 typedef enum
 {
     WIFI_STA_STATE_IDLE = 0,
@@ -47,3 +50,5 @@ wifi_sta_status_t wifi_sta_get_status(void);
  * Convenience: whether STA is currently connected (has IP).
  */
 bool wifi_sta_is_connected(void);
+
+void wifi_sta_status_to_json(const wifi_sta_status_t *s, char *out_buf, size_t out_len);

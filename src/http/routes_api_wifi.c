@@ -28,37 +28,25 @@ static esp_err_t api_wifi_get(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // STA runtime status
-    // NOTE: JSON is built here as a deliberate pragmatic choice.
-    // A cleaner solution (wifi_sta_status_to_json) is planned for the
-    // architecture-polish branch (Punkt 7).
     wifi_sta_status_t sta = wifi_sta_get_status();
 
-    const char *sta_state_str = "idle";
-    if (sta.state == WIFI_STA_STATE_CONNECTED)
-        sta_state_str = "connected";
-    else if (sta.state == WIFI_STA_STATE_CONNECTING)
-        sta_state_str = "connecting";
-    else if (sta.state == WIFI_STA_STATE_FAILED)
-        sta_state_str = "failed";
+    char sta_buf[WIFI_STA_STATUS_JSON_BUF_SIZE];
+    wifi_sta_status_to_json(&sta, sta_buf, sizeof(sta_buf));
 
-    char ip_str[16] = {0};
-    if (sta.state == WIFI_STA_STATE_CONNECTED)
-    {
-        snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
-                 sta.ip[0], sta.ip[1], sta.ip[2], sta.ip[3]);
-    }
+    // sta_buf enthält jetzt {"sta_state":"connected","ip":"192.168.x.x"}
+    // Wir bauen das finale JSON manuell zusammen
+    char buf[320];
+    size_t sta_len = strlen(sta_buf);
+    if (sta_len > 0)
+        sta_buf[sta_len - 1] = '\0'; // letztes } entfernen
 
-    char buf[256];
     snprintf(buf, sizeof(buf),
-             "{\"ssid\":\"%s\",\"pass_len\":%u,\"sta_state\":\"%s\",\"ip\":\"%s\"}",
+             "{\"ssid\":\"%s\",\"pass_len\":%u,%s}",
              s.ssid,
              (unsigned)strlen(s.pass),
-             sta_state_str,
-             ip_str);
+             sta_buf + 1);
 
-    ESP_LOGI(TAG, "GET wifi config: SSID='%s' (password withheld), sta=%s",
-             s.ssid, sta_state_str);
+    ESP_LOGI(TAG, "GET wifi config: SSID='%s' (password withheld)", s.ssid);
 
     http_send_json(req, 200, buf);
     return ESP_OK;
