@@ -48,7 +48,7 @@ static bool read_location_object(const cJSON *obj, location_t *out_loc)
     return ok;
 }
 
-bool   locations_storage_from_json(const char *json, locations_model_t *out_model)
+bool locations_storage_from_json(const char *json, locations_model_t *out_model)
 {
     bool return_value = false;
 
@@ -159,15 +159,6 @@ size_t locations_storage_measure_json(const locations_model_t *model)
                 (void)cJSON_AddBoolToObject(obj, STORAGE_KEY_IS_ACTIVE, loc->is_active);
 
                 cJSON_AddItemToArray(arr, obj);
-            }
-
-            if (needed == 0U)
-            {
-                /* keep 0 */
-            }
-            else
-            {
-                /* not used */
             }
 
             char *printed = cJSON_PrintUnformatted(root);
