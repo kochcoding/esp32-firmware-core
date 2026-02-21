@@ -25,16 +25,75 @@ static wifi_sta_status_t s_status = {
 
 static esp_timer_handle_t s_retry_timer = NULL;
 
+// --------------------------------------------------------------------------
+// State Machine
+// --------------------------------------------------------------------------
+typedef struct
+{
+    wifi_sta_state_t from;
+    wifi_sta_state_t to;
+} sta_transition_t;
+
+static const sta_transition_t s_allowed_transitions[] = {
+    {WIFI_STA_STATE_IDLE, WIFI_STA_STATE_CONNECTING},
+    {WIFI_STA_STATE_CONNECTING, WIFI_STA_STATE_CONNECTED},
+    {WIFI_STA_STATE_CONNECTING, WIFI_STA_STATE_RETRYING},
+    {WIFI_STA_STATE_CONNECTING, WIFI_STA_STATE_FAILED},
+    {WIFI_STA_STATE_RETRYING, WIFI_STA_STATE_CONNECTING},
+    {WIFI_STA_STATE_CONNECTED, WIFI_STA_STATE_RETRYING},
+    {WIFI_STA_STATE_FAILED, WIFI_STA_STATE_CONNECTING},
+};
+
+static const char *state_to_str(wifi_sta_state_t state)
+{
+    switch (state)
+    {
+    case WIFI_STA_STATE_IDLE:
+        return "IDLE";
+    case WIFI_STA_STATE_CONNECTING:
+        return "CONNECTING";
+    case WIFI_STA_STATE_RETRYING:
+        return "RETRYING";
+    case WIFI_STA_STATE_CONNECTED:
+        return "CONNECTED";
+    case WIFI_STA_STATE_FAILED:
+        return "FAILED";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static bool sta_transition(wifi_sta_state_t new_state)
+{
+    const size_t n = sizeof(s_allowed_transitions) / sizeof(s_allowed_transitions[0]);
+    for (size_t i = 0; i < n; i++)
+    {
+        if (s_allowed_transitions[i].from == s_status.state &&
+            s_allowed_transitions[i].to == new_state)
+        {
+            ESP_LOGI(TAG, "State: %s -> %s",
+                     state_to_str(s_status.state),
+                     state_to_str(new_state));
+            s_status.state = new_state;
+            return true;
+        }
+    }
+
+    ESP_LOGW(TAG, "Invalid transition: %s -> %s (ignored)",
+             state_to_str(s_status.state),
+             state_to_str(new_state));
+    return false;
+}
+
 static void retry_timer_cb(void *arg)
 {
     (void)arg;
 
-    if (s_status.state != WIFI_STA_STATE_CONNECTING)
-    {
+    if (s_status.state != WIFI_STA_STATE_RETRYING)
         return;
-    }
 
     ESP_LOGW(TAG, "Retrying WiFi connect (retry=%u)", (unsigned)s_status.retry_count);
+    sta_transition(WIFI_STA_STATE_CONNECTING);
     esp_wifi_connect();
 }
 
@@ -77,24 +136,19 @@ static void wifi_event_handler(void *arg,
 
     case WIFI_EVENT_STA_DISCONNECTED:
         ESP_LOGW(TAG, "WIFI_EVENT_STA_DISCONNECTED");
+        memset(s_status.ip, 0, sizeof(s_status.ip));
 
-        if (s_status.state == WIFI_STA_STATE_CONNECTED)
-        {
-            // lost connection -> go back to connecting
-            s_status.state = WIFI_STA_STATE_CONNECTING;
-            memset(s_status.ip, 0, sizeof(s_status.ip));
-        }
-
-        // Retry policy (MVP): retry up to 10 times, then mark FAILED.
         if (s_status.retry_count < 10)
         {
             s_status.retry_count++;
-            schedule_retry(s_status.retry_count);
+            if (sta_transition(WIFI_STA_STATE_RETRYING))
+                schedule_retry(s_status.retry_count);
         }
         else
         {
-            ESP_LOGE(TAG, "STA connect failed after retries");
-            s_status.state = WIFI_STA_STATE_FAILED;
+            sta_transition(WIFI_STA_STATE_FAILED);
+            ESP_LOGE(TAG, "STA connect failed after %u retries",
+                     (unsigned)s_status.retry_count);
         }
         break;
 
@@ -122,8 +176,8 @@ static void ip_event_handler(void *arg,
         s_status.ip[2] = ip4_addr3(&e->ip_info.ip);
         s_status.ip[3] = ip4_addr4(&e->ip_info.ip);
 
-        s_status.state = WIFI_STA_STATE_CONNECTED;
         s_status.retry_count = 0;
+        sta_transition(WIFI_STA_STATE_CONNECTED);
 
         char ip_str[16] = {0};
         inet_ntoa_r(e->ip_info.ip, ip_str, sizeof(ip_str));
@@ -230,6 +284,7 @@ esp_err_t wifi_sta_connect_from_nvs(void)
     if (err == ESP_ERR_NOT_FOUND || s.ssid[0] == '\0')
     {
         ESP_LOGI(TAG, "No STA SSID stored; staying in AP-only mode");
+        // Boot-Initialisierung, kein Transition-Trigger
         s_status.state = WIFI_STA_STATE_IDLE;
         return ESP_ERR_NOT_FOUND;
     }
@@ -274,7 +329,7 @@ esp_err_t wifi_sta_connect(const char *ssid, const char *pass)
     s_status.ssid[sizeof(s_status.ssid) - 1] = '\0';
     memset(s_status.ip, 0, sizeof(s_status.ip));
     s_status.retry_count = 0;
-    s_status.state = WIFI_STA_STATE_CONNECTING;
+    sta_transition(WIFI_STA_STATE_CONNECTING);
 
     return apply_and_connect_sta(ssid, pass_str);
 }
@@ -301,6 +356,8 @@ void wifi_sta_status_to_json(const wifi_sta_status_t *s, char *out_buf, size_t o
         state_str = "connecting";
     else if (s->state == WIFI_STA_STATE_FAILED)
         state_str = "failed";
+    else if (s->state == WIFI_STA_STATE_RETRYING)
+        state_str = "retrying";
 
     char ip_str[16] = {0};
     if (s->state == WIFI_STA_STATE_CONNECTED)

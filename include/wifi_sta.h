@@ -11,8 +11,9 @@ typedef enum
 {
     WIFI_STA_STATE_IDLE = 0,
     WIFI_STA_STATE_CONNECTING,
+    WIFI_STA_STATE_RETRYING, // NEU
     WIFI_STA_STATE_CONNECTED,
-    WIFI_STA_STATE_FAILED
+    WIFI_STA_STATE_FAILED,
 } wifi_sta_state_t;
 
 typedef struct
