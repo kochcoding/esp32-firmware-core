@@ -36,29 +36,19 @@ bool http_read_body(httpd_req_t *req, char *buf, size_t buf_len, size_t *out_len
 static void set_status(httpd_req_t *req, int code)
 {
     if (code == 200)
-    {
         httpd_resp_set_status(req, "200 OK");
-    }
     else if (code == 201)
-    {
         httpd_resp_set_status(req, "201 Created");
-    }
     else if (code == 400)
-    {
         httpd_resp_set_status(req, "400 Bad Request");
-    }
     else if (code == 404)
-    {
         httpd_resp_set_status(req, "404 Not Found");
-    }
     else if (code == 409)
-    {
         httpd_resp_set_status(req, "409 Conflict");
-    }
+    else if (code == 502)
+        httpd_resp_set_status(req, "502 Bad Gateway");
     else
-    {
         httpd_resp_set_status(req, "500 Internal Server Error");
-    }
 }
 
 void http_send_json(httpd_req_t *req, int status_code, const char *json)

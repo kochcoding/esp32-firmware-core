@@ -288,3 +288,28 @@ bool wifi_sta_is_connected(void)
 {
     return (s_status.state == WIFI_STA_STATE_CONNECTED);
 }
+
+void wifi_sta_status_to_json(const wifi_sta_status_t *s, char *out_buf, size_t out_len)
+{
+    if (!s || !out_buf || out_len == 0)
+        return;
+
+    const char *state_str = "idle";
+    if (s->state == WIFI_STA_STATE_CONNECTED)
+        state_str = "connected";
+    else if (s->state == WIFI_STA_STATE_CONNECTING)
+        state_str = "connecting";
+    else if (s->state == WIFI_STA_STATE_FAILED)
+        state_str = "failed";
+
+    char ip_str[16] = {0};
+    if (s->state == WIFI_STA_STATE_CONNECTED)
+    {
+        snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
+                 s->ip[0], s->ip[1], s->ip[2], s->ip[3]);
+    }
+
+    snprintf(out_buf, out_len,
+             "{\"sta_state\":\"%s\",\"ip\":\"%s\"}",
+             state_str, ip_str);
+}

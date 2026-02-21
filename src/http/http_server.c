@@ -14,7 +14,7 @@ static httpd_handle_t s_server = NULL;
 
 esp_err_t http_server_start(void)
 {
-    ESP_LOGW(TAG, "http_server_start() new wiring");
+    ESP_LOGI(TAG, "http_server_start() new wiring");
 
     if (s_server != NULL)
     {
