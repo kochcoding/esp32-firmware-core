@@ -44,10 +44,6 @@ static void get_device_ids(char mac_colon[18], char mac_compact[13])
 void app_main(void)
 {
     esp_log_level_set("*", ESP_LOG_INFO);
-    esp_log_level_set("HTTP_CLIENT", ESP_LOG_VERBOSE);
-    esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
-    esp_log_level_set("esp-tls-mbedtls", ESP_LOG_VERBOSE);
-    esp_log_level_set("mbedtls", ESP_LOG_VERBOSE);
 
     ESP_LOGI(TAG, "Boot OK - starting services...");
 
@@ -96,7 +92,7 @@ void app_main(void)
     esp_err_t err = wifi_sta_connect_from_nvs();
     if (err == ESP_ERR_NOT_FOUND)
     {
-        ESP_LOGW("main", "No WiFi creds in NVS yet -> staying in captive portal mode");
+        ESP_LOGW(TAG, "No WiFi creds in NVS yet -> staying in captive portal mode");
         // NICHT aborten. Einfach weiterlaufen lassen: SoftAP + captive portal bleibt aktiv.
     }
     else
