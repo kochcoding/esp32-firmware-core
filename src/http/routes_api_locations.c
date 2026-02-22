@@ -129,12 +129,15 @@ static esp_err_t api_locations_delete(httpd_req_t *req)
         return ESP_OK;
     }
 
-    char name_val[32] = {0};
-    if (httpd_query_key_value(name, "name", name_val, sizeof(name_val)) != ESP_OK)
+    char name_raw[32] = {0};
+    if (httpd_query_key_value(name, "name", name_raw, sizeof(name_raw)) != ESP_OK)
     {
         http_send_err(req, 400, "missing_name_param");
         return ESP_OK;
     }
+
+    char name_val[32] = {0};
+    http_url_decode(name_raw, name_val, sizeof(name_val));
 
     locations_model_t model = {0};
     esp_err_t err = app_locations_load(&model);
@@ -178,12 +181,15 @@ static esp_err_t api_locations_set_active(httpd_req_t *req)
         return ESP_OK;
     }
 
-    char name_val[32] = {0};
-    if (httpd_query_key_value(query, "name", name_val, sizeof(name_val)) != ESP_OK)
+    char name_raw[32] = {0};
+    if (httpd_query_key_value(query, "name", name_raw, sizeof(name_raw)) != ESP_OK)
     {
         http_send_err(req, 400, "missing_name_param");
         return ESP_OK;
     }
+
+    char name_val[32] = {0};
+    http_url_decode(name_raw, name_val, sizeof(name_val));
 
     locations_model_t model = {0};
     esp_err_t err = app_locations_load(&model);

@@ -33,6 +33,54 @@ bool http_read_body(httpd_req_t *req, char *buf, size_t buf_len, size_t *out_len
     return true;
 }
 
+// Konvertiert einen Hex-Char zu seinem numerischen Wert
+static int hex_val(char c)
+{
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return -1;
+}
+
+// URL-Decode: %XX → Byte, + → Leerzeichen
+// Schreibt in out (max out_len Bytes inkl. '\0')
+// Gibt true zurück wenn erfolgreich
+bool http_url_decode(const char *in, char *out, size_t out_len)
+{
+    if (!in || !out || out_len == 0)
+        return false;
+
+    size_t i = 0;
+    size_t j = 0;
+
+    while (in[i] != '\0' && j < out_len - 1)
+    {
+        if (in[i] == '%' && in[i + 1] != '\0' && in[i + 2] != '\0')
+        {
+            int hi = hex_val(in[i + 1]);
+            int lo = hex_val(in[i + 2]);
+            if (hi >= 0 && lo >= 0)
+            {
+                out[j++] = (char)((hi << 4) | lo);
+                i += 3;
+                continue;
+            }
+        }
+        if (in[i] == '+')
+        {
+            out[j++] = ' ';
+            i++;
+            continue;
+        }
+        out[j++] = in[i++];
+    }
+    out[j] = '\0';
+    return true;
+}
+
 static void set_status(httpd_req_t *req, int code)
 {
     if (code == 200)
