@@ -1,3 +1,6 @@
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "openmeteo_client.h"
 
 #include <stdlib.h>
@@ -46,48 +49,69 @@ static esp_err_t on_data(esp_http_client_event_t *evt)
 
 static openmeteo_status_t http_get(const char *url, char *out_buf, size_t out_len)
 {
-    acc_t a = {
-        .buf = out_buf,
-        .len = 0,
-        .cap = out_len,
-        .overflow = false,
-    };
+    const int MAX_RETRIES = 3;
+    const int RETRY_DELAY_MS = 2000;
 
-    out_buf[0] = '\0';
-
-    esp_http_client_config_t cfg = {
-        .url = url,
-        .method = HTTP_METHOD_GET,
-        .timeout_ms = 10000,
-        .event_handler = on_data,
-        .user_data = &a,
-    };
-
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    if (!client)
-        return OPENMETEO_ERR_OOM;
-
-    esp_err_t err = esp_http_client_perform(client);
-    int status = esp_http_client_get_status_code(client);
-    esp_http_client_cleanup(client);
-
-    if (a.overflow)
-        return OPENMETEO_ERR_BUF_TOO_SMALL;
-
-    if (err != ESP_OK)
+    for (int attempt = 0; attempt < MAX_RETRIES; attempt++)
     {
-        ESP_LOGE(TAG, "HTTP error: %s", esp_err_to_name(err));
-        return OPENMETEO_ERR_HTTP;
+        if (attempt > 0)
+        {
+            ESP_LOGW(TAG, "HTTP retry %d/%d", attempt, MAX_RETRIES - 1);
+            vTaskDelay(pdMS_TO_TICKS(RETRY_DELAY_MS));
+        }
+
+        acc_t a = {
+            .buf = out_buf,
+            .len = 0,
+            .cap = out_len,
+            .overflow = false,
+        };
+
+        out_buf[0] = '\0';
+
+        esp_http_client_config_t cfg = {
+            .url = url,
+            .method = HTTP_METHOD_GET,
+            .timeout_ms = 10000,
+            .event_handler = on_data,
+            .user_data = &a,
+        };
+
+        esp_http_client_handle_t client = esp_http_client_init(&cfg);
+        if (!client)
+            return OPENMETEO_ERR_OOM;
+
+        esp_err_t err = esp_http_client_perform(client);
+        int status = esp_http_client_get_status_code(client);
+        esp_http_client_cleanup(client);
+
+        if (a.overflow)
+            return OPENMETEO_ERR_BUF_TOO_SMALL;
+
+        if (err == ESP_ERR_HTTP_CONNECT)
+        {
+            ESP_LOGW(TAG, "Connection failed (attempt %d), retrying...", attempt + 1);
+            continue;
+        }
+
+        if (err != ESP_OK)
+        {
+            ESP_LOGE(TAG, "HTTP error: %s", esp_err_to_name(err));
+            return OPENMETEO_ERR_HTTP;
+        }
+
+        if (status < 200 || status >= 300)
+        {
+            ESP_LOGE(TAG, "HTTP status %d", status);
+            return OPENMETEO_ERR_HTTP;
+        }
+
+        ESP_LOGI(TAG, "HTTP OK status=%d body_len=%u", status, (unsigned)a.len);
+        return OPENMETEO_OK;
     }
 
-    if (status < 200 || status >= 300)
-    {
-        ESP_LOGE(TAG, "HTTP status %d", status);
-        return OPENMETEO_ERR_HTTP;
-    }
-
-    ESP_LOGI(TAG, "HTTP OK status=%d body_len=%u", status, (unsigned)a.len);
-    return OPENMETEO_OK;
+    ESP_LOGE(TAG, "HTTP failed after %d attempts", MAX_RETRIES);
+    return OPENMETEO_ERR_HTTP;
 }
 
 openmeteo_status_t openmeteo_fetch_current(double lat, double lon, char *out_buf, size_t out_len)
