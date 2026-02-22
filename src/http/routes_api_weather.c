@@ -21,13 +21,49 @@ static const location_t *get_active_location(locations_model_t *model)
 // GET /api/weather/current
 static esp_err_t api_weather_current(httpd_req_t *req)
 {
-    locations_model_t model = {0};
-    const location_t *loc = get_active_location(&model);
+    char query[64] = {0};
+    char name_val[32] = {0};
+    bool has_name = false;
 
-    if (loc == NULL)
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK)
     {
-        http_send_err(req, 404, "no_active_location");
-        return ESP_OK;
+        if (httpd_query_key_value(query, "name", name_val, sizeof(name_val)) == ESP_OK)
+            has_name = true;
+    }
+
+    locations_model_t model = {0};
+    const location_t *loc = NULL;
+
+    if (has_name)
+    {
+        esp_err_t err = app_locations_load(&model);
+        if (err != ESP_OK)
+        {
+            http_send_err(req, 500, "load_failed");
+            return ESP_OK;
+        }
+        for (size_t i = 0; i < model.count; i++)
+        {
+            if (strcmp(model.items[i].name, name_val) == 0)
+            {
+                loc = &model.items[i];
+                break;
+            }
+        }
+        if (loc == NULL)
+        {
+            http_send_err(req, 404, "location_not_found");
+            return ESP_OK;
+        }
+    }
+    else
+    {
+        loc = get_active_location(&model);
+        if (loc == NULL)
+        {
+            http_send_err(req, 404, "no_active_location");
+            return ESP_OK;
+        }
     }
 
     ESP_LOGI(TAG, "GET current weather for '%s' (%.4f, %.4f)",
@@ -54,13 +90,49 @@ static esp_err_t api_weather_current(httpd_req_t *req)
 // GET /api/weather/forecast
 static esp_err_t api_weather_forecast(httpd_req_t *req)
 {
-    locations_model_t model = {0};
-    const location_t *loc = get_active_location(&model);
+    char query[64] = {0};
+    char name_val[32] = {0};
+    bool has_name = false;
 
-    if (loc == NULL)
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK)
     {
-        http_send_err(req, 404, "no_active_location");
-        return ESP_OK;
+        if (httpd_query_key_value(query, "name", name_val, sizeof(name_val)) == ESP_OK)
+            has_name = true;
+    }
+
+    locations_model_t model = {0};
+    const location_t *loc = NULL;
+
+    if (has_name)
+    {
+        esp_err_t err = app_locations_load(&model);
+        if (err != ESP_OK)
+        {
+            http_send_err(req, 500, "load_failed");
+            return ESP_OK;
+        }
+        for (size_t i = 0; i < model.count; i++)
+        {
+            if (strcmp(model.items[i].name, name_val) == 0)
+            {
+                loc = &model.items[i];
+                break;
+            }
+        }
+        if (loc == NULL)
+        {
+            http_send_err(req, 404, "location_not_found");
+            return ESP_OK;
+        }
+    }
+    else
+    {
+        loc = get_active_location(&model);
+        if (loc == NULL)
+        {
+            http_send_err(req, 404, "no_active_location");
+            return ESP_OK;
+        }
     }
 
     ESP_LOGI(TAG, "GET forecast weather for '%s' (%.4f, %.4f)",
