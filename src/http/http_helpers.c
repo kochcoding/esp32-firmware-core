@@ -33,7 +33,7 @@ bool http_read_body(httpd_req_t *req, char *buf, size_t buf_len, size_t *out_len
     return true;
 }
 
-// Konvertiert einen Hex-Char zu seinem numerischen Wert
+// Converts a hex character to its numeric value
 static int hex_val(char c)
 {
     if (c >= '0' && c <= '9')
@@ -45,9 +45,9 @@ static int hex_val(char c)
     return -1;
 }
 
-// URL-Decode: %XX → Byte, + → Leerzeichen
-// Schreibt in out (max out_len Bytes inkl. '\0')
-// Gibt true zurück wenn erfolgreich
+// URL-decodes a percent-encoded string: %XX → byte, + → space.
+// Writes into out (max out_len bytes including '\0').
+// Returns true on success.
 bool http_url_decode(const char *in, char *out, size_t out_len)
 {
     if (!in || !out || out_len == 0)

@@ -54,23 +54,6 @@ void app_main(void)
     ESP_LOGI(TAG, "device_id (STA MAC) = %s", device_id_mac);
     ESP_LOGI(TAG, "device_id (compact) = %s", device_id);
 
-#if CORE_BACKEND_POLL_ENABLED
-    char url[256];
-    int n = snprintf(url, sizeof(url),
-                     "%s/v1/devices/%s/desired",
-                     CORE_BACKEND_BASE_URL,
-                     device_id);
-
-    if (n < 0 || n >= (int)sizeof(url))
-    {
-        ESP_LOGE(TAG, "Backend URL build failed (buffer too small?)");
-    }
-    else
-    {
-        ESP_LOGI(TAG, "Backend poll URL = %s", url);
-    }
-#endif
-
     // WiFi AP
     ESP_ERROR_CHECK(wifi_init_ap());
 
@@ -93,7 +76,7 @@ void app_main(void)
     if (err == ESP_ERR_NOT_FOUND)
     {
         ESP_LOGW(TAG, "No WiFi creds in NVS yet -> staying in captive portal mode");
-        // NICHT aborten. Einfach weiterlaufen lassen: SoftAP + captive portal bleibt aktiv.
+        // Do not abort. Keep running: SoftAP + captive portal remains active.
     }
     else
     {

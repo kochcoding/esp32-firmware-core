@@ -33,12 +33,12 @@ static esp_err_t api_wifi_get(httpd_req_t *req)
     char sta_buf[WIFI_STA_STATUS_JSON_BUF_SIZE];
     wifi_sta_status_to_json(&sta, sta_buf, sizeof(sta_buf));
 
-    // sta_buf enthält jetzt {"sta_state":"connected","ip":"192.168.x.x"}
-    // Wir bauen das finale JSON manuell zusammen
+    // sta_buf now contains {"sta_state":"connected","ip":"192.168.x.x"}
+    // Manually assemble the final JSON response
     char buf[320];
     size_t sta_len = strlen(sta_buf);
     if (sta_len > 0)
-        sta_buf[sta_len - 1] = '\0'; // letztes } entfernen
+        sta_buf[sta_len - 1] = '\0'; // strip trailing '}'
 
     snprintf(buf, sizeof(buf),
              "{\"ssid\":\"%s\",\"pass_len\":%u,%s}",

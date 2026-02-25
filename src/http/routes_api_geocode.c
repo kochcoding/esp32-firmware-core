@@ -46,11 +46,11 @@ static esp_err_t on_data(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-// GET /api/geocode?name=München
-// Gibt bis zu 5 Treffer zurück als JSON-Array
+// GET /api/geocode?name=<query>
+// Returns up to 5 matching locations as a JSON array.
 static esp_err_t api_geocode_get(httpd_req_t *req)
 {
-    // Query-String lesen
+    // read query-string
     char query[128] = {0};
     if (httpd_req_get_url_query_str(req, query, sizeof(query)) != ESP_OK)
     {
@@ -74,7 +74,7 @@ static esp_err_t api_geocode_get(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // URL-encode den Namen für die externe API
+    // Percent-encode the name for the external geocoding API
     char name_enc[192] = {0};
     size_t j = 0;
     for (size_t i = 0; name[i] && j < sizeof(name_enc) - 4; i++)
@@ -99,7 +99,7 @@ static esp_err_t api_geocode_get(httpd_req_t *req)
 
     ESP_LOGI(TAG, "geocode: '%s' → %s", name, url);
 
-    // HTTP Request
+    // Perform HTTP GET request
     char *raw = calloc(1, GEOCODE_BUF_SIZE);
     if (!raw)
     {
@@ -136,7 +136,7 @@ static esp_err_t api_geocode_get(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // JSON parsen und Treffer extrahieren
+    // Parse response and extract result fields
     cJSON *root = cJSON_Parse(raw);
     free(raw);
 
@@ -155,7 +155,7 @@ static esp_err_t api_geocode_get(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // Kompaktes JSON bauen: nur die Felder die wir brauchen
+    // Build compact response JSON with only the fields we need
     cJSON *out_root = cJSON_CreateObject();
     cJSON *out_results = cJSON_CreateArray();
 

@@ -15,7 +15,7 @@
 
 static const char *TAG = "routes_api_locations";
 
-// GET /api/locations — alle Locations zurückgeben
+// GET /api/locations — return all stored locations
 static esp_err_t api_locations_get(httpd_req_t *req)
 {
     locations_model_t model = {0};
@@ -52,7 +52,7 @@ static esp_err_t api_locations_get(httpd_req_t *req)
     return ESP_OK;
 }
 
-// POST /api/locations — neue Location hinzufügen
+// POST /api/locations — add a new location
 // Body: {"name":"Berlin","latitude":52.52,"longitude":13.405}
 static esp_err_t api_locations_post(httpd_req_t *req)
 {
@@ -64,7 +64,7 @@ static esp_err_t api_locations_post(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // JSON parsen
+    // Parse request body
     cJSON *root = cJSON_Parse(body);
     if (root == NULL)
     {
@@ -90,7 +90,7 @@ static esp_err_t api_locations_post(httpd_req_t *req)
     loc.is_active = false;
     cJSON_Delete(root);
 
-    // Bestehende Locations laden
+    // Load existing locations
     locations_model_t model = {0};
     esp_err_t err = app_locations_load(&model);
     if (err != ESP_OK && err != ESP_ERR_NOT_FOUND)
@@ -99,7 +99,7 @@ static esp_err_t api_locations_post(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // Hinzufügen — locations_model_add prüft auf Duplikate und Max
+    // Add — locations_model_add checks for duplicates and max capacity
     if (!locations_model_add(&model, &loc))
     {
         http_send_err(req, 409, "duplicate_or_full");
@@ -204,7 +204,7 @@ static esp_err_t api_locations_set_active(httpd_req_t *req)
         return ESP_OK;
     }
 
-    // Alle deaktivieren, gesuchte aktivieren
+    // Deactivate all, then activate the requested one
     bool found = false;
     for (size_t i = 0; i < model.count; i++)
     {

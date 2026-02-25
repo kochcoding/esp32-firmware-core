@@ -24,7 +24,7 @@ esp_err_t http_server_start(void)
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
-    // Deine getunten Settings übernehmen
+    // Tuned settings for captive portal workload
     config.lru_purge_enable = true;
     config.max_open_sockets = 7;
     config.recv_wait_timeout = 5;
@@ -32,7 +32,7 @@ esp_err_t http_server_start(void)
     config.max_uri_handlers = 24;
     config.stack_size = 12288;
 
-    // Für später: /ui/* wildcard routes
+    // Required for /ui/* wildcard route matching
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     esp_err_t err = httpd_start(&s_server, &config);

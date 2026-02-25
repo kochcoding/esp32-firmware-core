@@ -1,11 +1,12 @@
 #include <string.h>
 
+#include "app/nvs_helpers.h"
+
 #include "nvs.h"
 #include "nvs_flash.h"
 
 #include "app/app_settings_persistence.h"
 
-#define NVS_NS_CFG "cfg"
 #define NVS_KEY_SSID "sta_ssid"
 #define NVS_KEY_PASS "sta_pass"
 

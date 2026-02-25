@@ -17,16 +17,6 @@
 static const char *TAG = "wifi_ap";
 
 /* -------------------------------------------------------------------------- */
-/* Temporary stub – replaced later by NVS-backed config store                  */
-/* -------------------------------------------------------------------------- */
-static bool get_provisioned_ap_psk(char *out_psk, size_t out_len)
-{
-    (void)out_psk;
-    (void)out_len;
-    return false;
-}
-
-/* -------------------------------------------------------------------------- */
 /* Event handlers                                                              */
 /* -------------------------------------------------------------------------- */
 static void wifi_event_handler(void *arg,
@@ -184,7 +174,7 @@ esp_err_t wifi_init_ap(void)
     }
 
     /* 7) Start AP */
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA)); // -->neu
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
