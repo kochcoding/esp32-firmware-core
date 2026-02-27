@@ -1,16 +1,78 @@
+/**
+ * @file http_helpers.c
+ * @brief Implementation of helper utilities for ESP-IDF's HTTP server.
+ *
+ * @details
+ *  - No dynamic allocation.
+ *  - All outputs are bounded and null-terminated where applicable.
+ *  - Callers are responsible for passing safe ASCII-only error strings.
+ */
+
+//------------------------------------------------------------------------------
+// private includes
+//------------------------------------------------------------------------------
 #include "http/http_helpers.h"
+
 #include <stdio.h>
 #include <string.h>
 
-bool http_read_body(httpd_req_t *req, char *buf, size_t buf_len, size_t *out_len)
+//------------------------------------------------------------------------------
+// private defines
+//------------------------------------------------------------------------------
+
+#define HTTP_STATUS_OK (200U)
+#define HTTP_STATUS_CREATED (201U)
+#define HTTP_STATUS_BAD_REQUEST (400U)
+#define HTTP_STATUS_NOT_FOUND (404U)
+#define HTTP_STATUS_CONFLICT (409U)
+#define HTTP_STATUS_INTERNAL_ERROR (500U)
+#define HTTP_STATUS_BAD_GATEWAY (502U)
+
+//------------------------------------------------------------------------------
+// private typedefs
+//------------------------------------------------------------------------------
+
+typedef struct
 {
-    if (!req || !buf || buf_len < 2)
+    uint16_t code;
+    const char *text;
+} http_status_entry_t;
+
+//------------------------------------------------------------------------------
+// private variables
+//------------------------------------------------------------------------------
+
+static const http_status_entry_t http_status_table[] = {
+    {HTTP_STATUS_OK, "200 OK"},
+    {HTTP_STATUS_CREATED, "201 Created"},
+    {HTTP_STATUS_BAD_REQUEST, "400 Bad Request"},
+    {HTTP_STATUS_NOT_FOUND, "404 Not Found"},
+    {HTTP_STATUS_CONFLICT, "409 Conflict"},
+    {HTTP_STATUS_BAD_GATEWAY, "502 Bad Gateway"},
+
+    /* Fallback / default */
+    {HTTP_STATUS_INTERNAL_ERROR, "500 Internal Server Error"}};
+
+//------------------------------------------------------------------------------
+// private helpers (prototypes)
+//------------------------------------------------------------------------------
+static bool hex_character_to_value(uint8_t *out_value, char hex_character);
+
+static void set_status(httpd_req_t *request, uint16_t status_code);
+
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
+
+bool http_read_body(httpd_req_t *request, char *buffer, size_t buffer_length, size_t *out_length)
+{
+    if ((request == NULL) || (buffer == NULL) || (buffer_length < 2U))
     {
         return false;
     }
 
-    int total = req->content_len;
-    if (total <= 0 || (size_t)total >= buf_len)
+    int total = request->content_len;
+    if (total <= 0 || (size_t)total >= buffer_length)
     {
         return false;
     }
@@ -18,54 +80,42 @@ bool http_read_body(httpd_req_t *req, char *buf, size_t buf_len, size_t *out_len
     int received = 0;
     while (received < total)
     {
-        int r = httpd_req_recv(req, buf + received, total - received);
+        int r = httpd_req_recv(request, buffer + received, total - received);
         if (r <= 0)
         {
             return false;
         }
         received += r;
     }
-    buf[received] = '\0';
-    if (out_len)
+    buffer[received] = '\0';
+    if (out_length)
     {
-        *out_len = (size_t)received;
+        *out_length = (size_t)received;
     }
     return true;
 }
 
-// Converts a hex character to its numeric value
-static int hex_val(char c)
+bool http_url_decode(const char *in, char *out, size_t out_length)
 {
-    if (c >= '0' && c <= '9')
-        return c - '0';
-    if (c >= 'a' && c <= 'f')
-        return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F')
-        return c - 'A' + 10;
-    return -1;
-}
-
-// URL-decodes a percent-encoded string: %XX → byte, + → space.
-// Writes into out (max out_len bytes including '\0').
-// Returns true on success.
-bool http_url_decode(const char *in, char *out, size_t out_len)
-{
-    if (!in || !out || out_len == 0)
+    if ((in == NULL) || (out == NULL) || (out_length == 0U))
+    {
         return false;
+    }
 
     size_t i = 0;
     size_t j = 0;
 
-    while (in[i] != '\0' && j < out_len - 1)
+    while (in[i] != '\0' && j < out_length - 1)
     {
         if (in[i] == '%' && in[i + 1] != '\0' && in[i + 2] != '\0')
         {
-            int hi = hex_val(in[i + 1]);
-            int lo = hex_val(in[i + 2]);
-            if (hi >= 0 && lo >= 0)
+            uint8_t hi = 0U;
+            uint8_t lo = 0U;
+
+            if (hex_character_to_value(&hi, in[i + 1U]) && hex_character_to_value(&lo, in[i + 2U]))
             {
-                out[j++] = (char)((hi << 4) | lo);
-                i += 3;
+                out[j++] = (char)(((uint8_t)(hi << 4U)) | lo);
+                i += 3U;
                 continue;
             }
         }
@@ -81,40 +131,99 @@ bool http_url_decode(const char *in, char *out, size_t out_len)
     return true;
 }
 
-static void set_status(httpd_req_t *req, int code)
+void http_send_json(httpd_req_t *request, int status_code, const char *json)
 {
-    if (code == 200)
-        httpd_resp_set_status(req, "200 OK");
-    else if (code == 201)
-        httpd_resp_set_status(req, "201 Created");
-    else if (code == 400)
-        httpd_resp_set_status(req, "400 Bad Request");
-    else if (code == 404)
-        httpd_resp_set_status(req, "404 Not Found");
-    else if (code == 409)
-        httpd_resp_set_status(req, "409 Conflict");
-    else if (code == 502)
-        httpd_resp_set_status(req, "502 Bad Gateway");
-    else
-        httpd_resp_set_status(req, "500 Internal Server Error");
+    set_status(request, (uint16_t)status_code);
+    httpd_resp_set_type(request, "application/json");
+    httpd_resp_set_hdr(request, "Cache-Control", "no-store");
+    httpd_resp_set_hdr(request, "Connection", "close");
+    httpd_resp_send(request, json ? json : "{}", HTTPD_RESP_USE_STRLEN);
 }
 
-void http_send_json(httpd_req_t *req, int status_code, const char *json)
+void http_send_err(httpd_req_t *request, int status_code, const char *message)
 {
-    set_status(req, status_code);
-    httpd_resp_set_type(req, "application/json");
-    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
-    httpd_resp_set_hdr(req, "Connection", "close");
-    httpd_resp_send(req, json ? json : "{}", HTTPD_RESP_USE_STRLEN);
-}
-
-void http_send_err(httpd_req_t *req, int status_code, const char *msg)
-{
-    char buf[160];
-    if (!msg)
+    char buffer[160];
+    if (message == NULL)
     {
-        msg = "error";
+        message = "error";
     }
-    snprintf(buf, sizeof(buf), "{\"ok\":false,\"error\":\"%s\"}", msg);
-    http_send_json(req, status_code, buf);
+    snprintf(buffer, sizeof(buffer), "{\"ok\":false,\"error\":\"%s\"}", message);
+    http_send_json(request, status_code, buffer);
+}
+
+//------------------------------------------------------------------------------
+// private helpers (implementation)
+//------------------------------------------------------------------------------
+static bool hex_character_to_value(uint8_t *out_value, char hex_character)
+{
+    bool is_valid = false;
+
+    if (out_value != NULL)
+    {
+        if (((uint8_t)hex_character >= (uint8_t)'0') && ((uint8_t)hex_character <= (uint8_t)'9'))
+        {
+            *out_value = (uint8_t)hex_character - (uint8_t)'0';
+            is_valid = true;
+        }
+        else if (((uint8_t)hex_character >= (uint8_t)'a') &&
+                 ((uint8_t)hex_character <= (uint8_t)'f'))
+        {
+            *out_value = (uint8_t)((uint8_t)hex_character - (uint8_t)'a') + 10U;
+            is_valid = true;
+        }
+        else if (((uint8_t)hex_character >= (uint8_t)'A') &&
+                 ((uint8_t)hex_character <= (uint8_t)'F'))
+        {
+            *out_value = (uint8_t)((uint8_t)hex_character - (uint8_t)'A') + 10U;
+            is_valid = true;
+        }
+        else
+        {
+            /* hex_character is not a valid hex digit — is_valid remains false */
+        }
+    }
+    else
+    {
+        /* out_value is a NULL pointer - is_valid remains false */
+    }
+
+    return is_valid;
+}
+
+static void set_status(httpd_req_t *request, uint16_t status_code)
+{
+    size_t index;
+    const char *status_text = NULL;
+    const size_t table_size = sizeof(http_status_table) / sizeof(http_status_table[0]);
+
+    if (request == NULL)
+    {
+        /* NULL request: skip silently, ESP-IDF will handle the invalid state */
+    }
+    else
+    {
+        for (index = 0U; index < table_size; index++)
+        {
+            if (http_status_table[index].code == status_code)
+            {
+                status_text = http_status_table[index].text;
+                break;
+            }
+        }
+
+        if (status_text == NULL)
+        {
+            /* explicit search for 500 entry */
+            for (index = 0U; index < table_size; index++)
+            {
+                if (http_status_table[index].code == HTTP_STATUS_INTERNAL_ERROR)
+                {
+                    status_text = http_status_table[index].text;
+                    break;
+                }
+            }
+        }
+
+        httpd_resp_set_status(request, status_text);
+    }
 }
