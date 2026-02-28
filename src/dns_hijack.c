@@ -1,26 +1,28 @@
-// dns_hijack.c
-#include <string.h>
+//------------------------------------------------------------------------------
+// private includes
+//------------------------------------------------------------------------------
+#include "dns_hijack.h"
+
 #include <errno.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "esp_log.h"
 #include "esp_err.h"
+#include "esp_log.h"
 
-#include "lwip/sockets.h"
 #include "lwip/inet.h"
+#include "lwip/sockets.h"
 
-#include "dns_hijack.h"
+//------------------------------------------------------------------------------
+// private defines
+//------------------------------------------------------------------------------
 
-static const char *TAG = "dns_hijack";
-
-static TaskHandle_t s_task = NULL;
-static int s_sock = -1;
-
-// IPv4 reply address in network byte order (big-endian)
-static uint32_t s_reply_ip_be = 0;
+//------------------------------------------------------------------------------
+// private typedefs
+//------------------------------------------------------------------------------
 
 #pragma pack(push, 1)
 typedef struct
@@ -34,10 +36,31 @@ typedef struct
 } dns_header_t;
 #pragma pack(pop)
 
-static uint16_t rd16(const uint8_t *p)
-{
-    return (uint16_t)((p[0] << 8) | p[1]);
-}
+//------------------------------------------------------------------------------
+// private variables
+//------------------------------------------------------------------------------
+
+static const char *TAG = "dns_hijack";
+
+static TaskHandle_t s_task = NULL;
+static int s_sock = -1;
+
+/* IPv4 reply address in network byte order (big-endian) */
+static uint32_t s_reply_ip_be = 0;
+
+//------------------------------------------------------------------------------
+// private functions (prototypes)
+//------------------------------------------------------------------------------
+static uint16_t rd16(const uint8_t *p);
+static void wr16(uint8_t *p, uint16_t v);
+static int build_dns_a_reply(const uint8_t *request, int request_length, uint8_t *resp, int resp_max);
+static void dns_hijack_task(void *arg);
+
+//------------------------------------------------------------------------------
+// private functions (implementation)
+//------------------------------------------------------------------------------
+
+static uint16_t rd16(const uint8_t *p) { return (uint16_t)((p[0] << 8) | p[1]); }
 
 static void wr16(uint8_t *p, uint16_t v)
 {
@@ -45,17 +68,17 @@ static void wr16(uint8_t *p, uint16_t v)
     p[1] = (uint8_t)(v & 0xFF);
 }
 
-static int build_dns_a_reply(const uint8_t *req, int req_len, uint8_t *resp, int resp_max)
+static int build_dns_a_reply(const uint8_t *request, int request_length, uint8_t *resp, int resp_max)
 {
-    if (req_len < (int)sizeof(dns_header_t))
+    if (request_length < (int)sizeof(dns_header_t))
         return -1;
 
     // Ensure we have enough headroom for a minimal answer record
-    if (resp_max < req_len + 16)
+    if (resp_max < request_length + 16)
         return -1;
 
     // Copy request as base (header + question)
-    memcpy(resp, req, req_len);
+    memcpy(resp, request, request_length);
 
     dns_header_t *h = (dns_header_t *)resp;
     const uint16_t qd = ntohs(h->qdcount);
@@ -66,18 +89,18 @@ static int build_dns_a_reply(const uint8_t *req, int req_len, uint8_t *resp, int
     int off = (int)sizeof(dns_header_t);
 
     // QNAME: labels, terminated by 0
-    while (off < req_len)
+    while (off < request_length)
     {
         uint8_t lab_len = resp[off++];
         if (lab_len == 0)
             break;
-        if (off + lab_len > req_len)
+        if (off + lab_len > request_length)
             return -1;
         off += lab_len;
     }
 
     // Need QTYPE + QCLASS
-    if (off + 4 > req_len)
+    if (off + 4 > request_length)
         return -1;
 
     const uint16_t qtype = rd16(&resp[off + 0]);
@@ -167,6 +190,10 @@ static void dns_hijack_task(void *arg)
         (void)sendto(s_sock, tx, resp_len, 0, (struct sockaddr *)&from, from_len);
     }
 }
+
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
 
 esp_err_t dns_hijack_start(uint32_t ipv4_addr_be)
 {

@@ -1,27 +1,50 @@
+//------------------------------------------------------------------------------
+// private includes
+//------------------------------------------------------------------------------
+#include "wifi_ap.h"
+
+#include "core_config.h"
 
 #include <string.h>
 
-#include "wifi_ap.h"
-#include "core_config.h"
-
-#include "esp_log.h"
-#include "nvs_flash.h"
-#include "esp_netif.h"
-#include "esp_event.h"
-#include "esp_wifi.h"
 #include "esp_err.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include "esp_mac.h"
+#include "esp_netif.h"
+#include "esp_wifi.h"
+
+#include "nvs_flash.h"
 
 #include "lwip/inet.h"
-#include "esp_mac.h"
+
+//------------------------------------------------------------------------------
+// private defines
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// private typedefs
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// private variables
+//------------------------------------------------------------------------------
 
 static const char *TAG = "wifi_ap";
 
-/* -------------------------------------------------------------------------- */
-/* Event handlers                                                              */
-/* -------------------------------------------------------------------------- */
-static void wifi_event_handler(void *arg,
-                               esp_event_base_t event_base,
-                               int32_t event_id,
+//------------------------------------------------------------------------------
+// private functions (prototypes)
+//------------------------------------------------------------------------------
+static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                               void *event_data);
+static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                             void *event_data);
+
+//------------------------------------------------------------------------------
+// private functions (implementation)
+//------------------------------------------------------------------------------
+
+static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                                void *event_data)
 {
     (void)arg;
@@ -41,16 +64,15 @@ static void wifi_event_handler(void *arg,
         case WIFI_EVENT_AP_STACONNECTED:
         {
             const wifi_event_ap_staconnected_t *e = event_data;
-            ESP_LOGI(TAG, "Client connected: " MACSTR ", AID=%d",
-                     MAC2STR(e->mac), e->aid);
+            ESP_LOGI(TAG, "Client connected: " MACSTR ", AID=%d", MAC2STR(e->mac), e->aid);
             break;
         }
 
         case WIFI_EVENT_AP_STADISCONNECTED:
         {
             const wifi_event_ap_stadisconnected_t *e = event_data;
-            ESP_LOGI(TAG, "Client disconnected: " MACSTR ", AID=%d, reason=%d",
-                     MAC2STR(e->mac), e->aid, e->reason);
+            ESP_LOGI(TAG, "Client disconnected: " MACSTR ", AID=%d, reason=%d", MAC2STR(e->mac),
+                     e->aid, e->reason);
             break;
         }
 
@@ -60,9 +82,7 @@ static void wifi_event_handler(void *arg,
     }
 }
 
-static void ip_event_handler(void *arg,
-                             esp_event_base_t event_base,
-                             int32_t event_id,
+static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                              void *event_data)
 {
     (void)arg;
@@ -81,9 +101,9 @@ static void ip_event_handler(void *arg,
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/* WiFi AP init                                                                */
-/* -------------------------------------------------------------------------- */
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
 esp_err_t wifi_init_ap(void)
 {
     /* 1) NVS init */
@@ -113,11 +133,11 @@ esp_err_t wifi_init_ap(void)
     }
 
     /* 3) Register handlers */
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                                        &wifi_event_handler, NULL, NULL));
 
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        IP_EVENT, ESP_EVENT_ANY_ID, &ip_event_handler, NULL, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID,
+                                                        &ip_event_handler, NULL, NULL));
 
     /* 4) Create AP netif */
     esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();

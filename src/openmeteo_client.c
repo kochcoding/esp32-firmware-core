@@ -1,16 +1,25 @@
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
+//------------------------------------------------------------------------------
+// private includes
+//------------------------------------------------------------------------------
 #include "openmeteo_client.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "esp_http_client.h"
 #include "esp_log.h"
 
-static const char *TAG = "openmeteo";
+//------------------------------------------------------------------------------
+// private defines
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// private typedefs
+//------------------------------------------------------------------------------
 
 typedef struct
 {
@@ -20,34 +29,50 @@ typedef struct
     bool overflow;
 } acc_t;
 
-static esp_err_t on_data(esp_http_client_event_t *evt)
+//------------------------------------------------------------------------------
+// private variables
+//------------------------------------------------------------------------------
+
+static const char *TAG = "openmeteo";
+
+//------------------------------------------------------------------------------
+// private functions (prototypes)
+//------------------------------------------------------------------------------
+
+static esp_err_t on_data(esp_http_client_event_t *event);
+static openmeteo_status_t http_get(const char *url, char *out_buffer, size_t out_length);
+
+//------------------------------------------------------------------------------
+// private functions (implementation)
+//------------------------------------------------------------------------------
+
+static esp_err_t on_data(esp_http_client_event_t *event)
 {
-    if (evt->event_id != HTTP_EVENT_ON_DATA)
+    if (event->event_id != HTTP_EVENT_ON_DATA)
         return ESP_OK;
-    if (!evt->data || evt->data_len <= 0)
+    if (!event->data || event->data_len <= 0)
         return ESP_OK;
 
-    acc_t *a = (acc_t *)evt->user_data;
+    acc_t *a = (acc_t *)event->user_data;
 
     if (a->overflow)
         return ESP_OK;
 
-    size_t needed = a->len + (size_t)evt->data_len + 1;
+    size_t needed = a->len + (size_t)event->data_len + 1;
     if (needed > a->cap)
     {
-        ESP_LOGE(TAG, "response exceeds buffer (%u > %u)",
-                 (unsigned)needed, (unsigned)a->cap);
+        ESP_LOGE(TAG, "response exceeds buffer (%u > %u)", (unsigned)needed, (unsigned)a->cap);
         a->overflow = true;
         return ESP_OK;
     }
 
-    memcpy(a->buf + a->len, evt->data, (size_t)evt->data_len);
-    a->len += (size_t)evt->data_len;
+    memcpy(a->buf + a->len, event->data, (size_t)event->data_len);
+    a->len += (size_t)event->data_len;
     a->buf[a->len] = '\0';
     return ESP_OK;
 }
 
-static openmeteo_status_t http_get(const char *url, char *out_buf, size_t out_len)
+static openmeteo_status_t http_get(const char *url, char *out_buffer, size_t out_length)
 {
     const int MAX_RETRIES = 3;
     const int RETRY_DELAY_MS = 2000;
@@ -61,13 +86,13 @@ static openmeteo_status_t http_get(const char *url, char *out_buf, size_t out_le
         }
 
         acc_t a = {
-            .buf = out_buf,
+            .buf = out_buffer,
             .len = 0,
-            .cap = out_len,
+            .cap = out_length,
             .overflow = false,
         };
 
-        out_buf[0] = '\0';
+        out_buffer[0] = '\0';
 
         esp_http_client_config_t cfg = {
             .url = url,
@@ -114,9 +139,13 @@ static openmeteo_status_t http_get(const char *url, char *out_buf, size_t out_le
     return OPENMETEO_ERR_HTTP;
 }
 
-openmeteo_status_t openmeteo_fetch_current(double lat, double lon, char *out_buf, size_t out_len)
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
+
+openmeteo_status_t openmeteo_fetch_current(double lat, double lon, char *out_buffer, size_t out_length)
 {
-    if (!out_buf || out_len == 0)
+    if (!out_buffer || out_length == 0)
         return OPENMETEO_ERR_INVALID_ARG;
 
     char url[512];
@@ -129,12 +158,13 @@ openmeteo_status_t openmeteo_fetch_current(double lat, double lon, char *out_buf
              lat, lon);
 
     ESP_LOGI(TAG, "fetch current: lat=%.4f lon=%.4f", lat, lon);
-    return http_get(url, out_buf, out_len);
+    return http_get(url, out_buffer, out_length);
 }
 
-openmeteo_status_t openmeteo_fetch_forecast(double lat, double lon, int days, char *out_buf, size_t out_len)
+openmeteo_status_t openmeteo_fetch_forecast(double lat, double lon, int days, char *out_buffer,
+                                            size_t out_length)
 {
-    if (!out_buf || out_len == 0)
+    if (!out_buffer || out_length == 0)
         return OPENMETEO_ERR_INVALID_ARG;
 
     if (days <= 0)
@@ -152,5 +182,5 @@ openmeteo_status_t openmeteo_fetch_forecast(double lat, double lon, int days, ch
              lat, lon, days);
 
     ESP_LOGI(TAG, "fetch forecast: lat=%.4f lon=%.4f days=%d", lat, lon, days);
-    return http_get(url, out_buf, out_len);
+    return http_get(url, out_buffer, out_length);
 }

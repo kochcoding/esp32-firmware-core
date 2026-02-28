@@ -1,16 +1,37 @@
+//------------------------------------------------------------------------------
+// private includes
+//------------------------------------------------------------------------------
 #include "wifi_sta.h"
-
-#include <string.h>
-
-#include "esp_log.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_netif.h"
-#include "esp_timer.h"
 
 #include "app/app_settings_persistence.h"
 
+#include <string.h>
+
+#include "esp_event.h"
+#include "esp_log.h"
+#include "esp_netif.h"
+#include "esp_timer.h"
+#include "esp_wifi.h"
+
 #include "lwip/inet.h"
+
+//------------------------------------------------------------------------------
+// private defines
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// private typedefs
+//------------------------------------------------------------------------------
+
+typedef struct
+{
+    wifi_sta_state_t from;
+    wifi_sta_state_t to;
+} sta_transition_t;
+
+//------------------------------------------------------------------------------
+// private variables
+//------------------------------------------------------------------------------
 
 static const char *TAG = "wifi_sta";
 
@@ -25,15 +46,6 @@ static wifi_sta_status_t s_status = {
 
 static esp_timer_handle_t s_retry_timer = NULL;
 
-// --------------------------------------------------------------------------
-// State Machine
-// --------------------------------------------------------------------------
-typedef struct
-{
-    wifi_sta_state_t from;
-    wifi_sta_state_t to;
-} sta_transition_t;
-
 static const sta_transition_t s_allowed_transitions[] = {
     {WIFI_STA_STATE_IDLE, WIFI_STA_STATE_CONNECTING},
     {WIFI_STA_STATE_CONNECTING, WIFI_STA_STATE_CONNECTED},
@@ -43,6 +55,23 @@ static const sta_transition_t s_allowed_transitions[] = {
     {WIFI_STA_STATE_CONNECTED, WIFI_STA_STATE_RETRYING},
     {WIFI_STA_STATE_FAILED, WIFI_STA_STATE_CONNECTING},
 };
+
+//------------------------------------------------------------------------------
+// private functions (prototypes)
+//------------------------------------------------------------------------------
+static const char *state_to_str(wifi_sta_state_t state);
+static bool sta_transition(wifi_sta_state_t new_state);
+static void retry_timer_cb(void *arg);
+static void schedule_retry(uint32_t retry_count);
+static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                               void *event_data);
+static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
+                             void *event_data);
+static esp_err_t apply_and_connect_sta(const char *ssid, const char *pass);
+
+//------------------------------------------------------------------------------
+// private functions (implementation)
+//------------------------------------------------------------------------------
 
 static const char *state_to_str(wifi_sta_state_t state)
 {
@@ -71,16 +100,13 @@ static bool sta_transition(wifi_sta_state_t new_state)
         if (s_allowed_transitions[i].from == s_status.state &&
             s_allowed_transitions[i].to == new_state)
         {
-            ESP_LOGI(TAG, "State: %s -> %s",
-                     state_to_str(s_status.state),
-                     state_to_str(new_state));
+            ESP_LOGI(TAG, "State: %s -> %s", state_to_str(s_status.state), state_to_str(new_state));
             s_status.state = new_state;
             return true;
         }
     }
 
-    ESP_LOGW(TAG, "Invalid transition: %s -> %s (ignored)",
-             state_to_str(s_status.state),
+    ESP_LOGW(TAG, "Invalid transition: %s -> %s (ignored)", state_to_str(s_status.state),
              state_to_str(new_state));
     return false;
 }
@@ -111,9 +137,7 @@ static void schedule_retry(uint32_t retry_count)
     esp_timer_start_once(s_retry_timer, (uint64_t)delay_ms * 1000ULL);
 }
 
-static void wifi_event_handler(void *arg,
-                               esp_event_base_t event_base,
-                               int32_t event_id,
+static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                                void *event_data)
 {
     (void)arg;
@@ -147,8 +171,7 @@ static void wifi_event_handler(void *arg,
         else
         {
             sta_transition(WIFI_STA_STATE_FAILED);
-            ESP_LOGE(TAG, "STA connect failed after %u retries",
-                     (unsigned)s_status.retry_count);
+            ESP_LOGE(TAG, "STA connect failed after %u retries", (unsigned)s_status.retry_count);
         }
         break;
 
@@ -157,9 +180,7 @@ static void wifi_event_handler(void *arg,
     }
 }
 
-static void ip_event_handler(void *arg,
-                             esp_event_base_t event_base,
-                             int32_t event_id,
+static void ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                              void *event_data)
 {
     (void)arg;
@@ -209,8 +230,9 @@ static esp_err_t apply_and_connect_sta(const char *ssid, const char *pass)
 
     if (mode != WIFI_MODE_APSTA)
     {
-        ESP_LOGE(TAG, "WiFi mode is %d, expected APSTA. "
-                      "Do NOT switch mode here (would stop AP).",
+        ESP_LOGE(TAG,
+                 "WiFi mode is %d, expected APSTA. "
+                 "Do NOT switch mode here (would stop AP).",
                  (int)mode);
         return ESP_ERR_INVALID_STATE;
     }
@@ -236,6 +258,10 @@ static esp_err_t apply_and_connect_sta(const char *ssid, const char *pass)
     return esp_wifi_connect(); // async
 }
 
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
+
 esp_err_t wifi_sta_init(void)
 {
     // Prefer existing default STA netif (created by wifi_init_ap)
@@ -255,20 +281,19 @@ esp_err_t wifi_sta_init(void)
     }
 
     // Event handlers (we can register additional ones; AP module already registered its own)
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                                        &wifi_event_handler, NULL, NULL));
 
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(
-        IP_EVENT, ESP_EVENT_ANY_ID, &ip_event_handler, NULL, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID,
+                                                        &ip_event_handler, NULL, NULL));
 
     // Retry timer
     if (!s_retry_timer)
     {
-        const esp_timer_create_args_t targs = {
-            .callback = &retry_timer_cb,
-            .arg = NULL,
-            .dispatch_method = ESP_TIMER_TASK,
-            .name = "sta_retry"};
+        const esp_timer_create_args_t targs = {.callback = &retry_timer_cb,
+                                               .arg = NULL,
+                                               .dispatch_method = ESP_TIMER_TASK,
+                                               .name = "sta_retry"};
         ESP_ERROR_CHECK(esp_timer_create(&targs, &s_retry_timer));
     }
 
@@ -310,13 +335,12 @@ esp_err_t wifi_sta_connect(const char *ssid, const char *pass)
 
     if (pass_str[0] == '\0')
     {
-        ESP_LOGW(TAG, "Starting STA connect to SSID='%s' (Open Network / no password)",
-                 ssid);
+        ESP_LOGW(TAG, "Starting STA connect to SSID='%s' (Open Network / no password)", ssid);
     }
     else
     {
-        ESP_LOGI(TAG, "Starting STA connect to SSID='%s' (pass_len=%u)",
-                 ssid, (unsigned)strlen(pass_str));
+        ESP_LOGI(TAG, "Starting STA connect to SSID='%s' (pass_len=%u)", ssid,
+                 (unsigned)strlen(pass_str));
     }
 
     // Stop any pending retry from a previous attempt.
@@ -339,10 +363,7 @@ wifi_sta_status_t wifi_sta_get_status(void)
     return s_status; // copy
 }
 
-bool wifi_sta_is_connected(void)
-{
-    return (s_status.state == WIFI_STA_STATE_CONNECTED);
-}
+bool wifi_sta_is_connected(void) { return (s_status.state == WIFI_STA_STATE_CONNECTED); }
 
 void wifi_sta_status_to_json(const wifi_sta_status_t *s, char *out_buf, size_t out_len)
 {
@@ -362,11 +383,8 @@ void wifi_sta_status_to_json(const wifi_sta_status_t *s, char *out_buf, size_t o
     char ip_str[16] = {0};
     if (s->state == WIFI_STA_STATE_CONNECTED)
     {
-        snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
-                 s->ip[0], s->ip[1], s->ip[2], s->ip[3]);
+        snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u", s->ip[0], s->ip[1], s->ip[2], s->ip[3]);
     }
 
-    snprintf(out_buf, out_len,
-             "{\"sta_state\":\"%s\",\"ip\":\"%s\"}",
-             state_str, ip_str);
+    snprintf(out_buf, out_len, "{\"sta_state\":\"%s\",\"ip\":\"%s\"}", state_str, ip_str);
 }
