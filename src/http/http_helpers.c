@@ -54,7 +54,7 @@ static const http_status_entry_t http_status_table[] = {
     {HTTP_STATUS_INTERNAL_ERROR, "500 Internal Server Error"}};
 
 //------------------------------------------------------------------------------
-// private helpers (prototypes)
+// private function (prototypes)
 //------------------------------------------------------------------------------
 static bool hex_character_to_value(uint8_t *out_value, char hex_character);
 
@@ -152,7 +152,7 @@ void http_send_err(httpd_req_t *request, int status_code, const char *message)
 }
 
 //------------------------------------------------------------------------------
-// private helpers (implementation)
+// private function (implementation)
 //------------------------------------------------------------------------------
 static bool hex_character_to_value(uint8_t *out_value, char hex_character)
 {

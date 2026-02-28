@@ -9,7 +9,20 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+//------------------------------------------------------------------------------
+// public includes
+//------------------------------------------------------------------------------
+
 #include "esp_err.h"
+
+//------------------------------------------------------------------------------
+// public API
+//------------------------------------------------------------------------------
 
 /**
  * @brief Start the HTTP server and register all route handlers.
@@ -21,3 +34,7 @@
  * @retval ESP_FAIL  Server already running, or @c httpd_start() failed.
  */
 esp_err_t http_server_start(void);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif

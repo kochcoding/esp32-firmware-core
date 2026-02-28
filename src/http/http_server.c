@@ -56,7 +56,7 @@ esp_err_t http_server_start(void)
     config.max_uri_handlers = HTTP_SERVER_MAX_URI_HANDLERS;
     config.stack_size = HTTP_SERVER_STACK_SIZE;
 
-    /* Required for /ui/* wildcard route matching */
+    /* Required for ui wildcard route matching */
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     esp_err_t error = httpd_start(&s_server, &config);
