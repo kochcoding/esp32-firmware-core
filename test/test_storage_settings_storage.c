@@ -1,16 +1,38 @@
+/**
+ * @file test_storage_settings_storage.c
+ * @brief Unit tests for settings_storage_wifi_from_json(), settings_storage_wifi_to_json(),
+ *        and settings_storage_wifi_measure_json().
+ */
+
+//------------------------------------------------------------------------------
+// includes
+//------------------------------------------------------------------------------
+#include "test_api.h"
+
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unity.h>
 
-#include <string.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-#include "test_api.h"
 #include "settings_storage.h"
 
-/*
-    settings_storage_wifi_from_json
-*/
+//------------------------------------------------------------------------------
+// private functions (prototypes)
+//------------------------------------------------------------------------------
+
+static void test_wifi_from_json_success(void);
+static void test_wifi_from_json_missing_ssid_fails(void);
+static void test_wifi_from_json_empty_ssid_fails(void);
+static void test_wifi_from_json_missing_pass_sets_empty(void);
+static void test_wifi_from_json_invalid_json_fails(void);
+
+static void test_wifi_measure_and_to_json_include_pass_success(void);
+static void test_wifi_measure_and_to_json_exclude_pass_uses_pass_len(void);
+
+//------------------------------------------------------------------------------
+// private functions (implementation)
+//------------------------------------------------------------------------------
 
 static void test_wifi_from_json_success(void)
 {
@@ -65,11 +87,6 @@ static void test_wifi_from_json_invalid_json_fails(void)
 
     TEST_ASSERT_FALSE(settings_storage_wifi_from_json(json, &out));
 }
-
-/*
-    settings_storage_wifi_to_json
-    settings_storage_wifi_measure_json
-*/
 
 static void test_wifi_measure_and_to_json_include_pass_success(void)
 {
@@ -126,9 +143,9 @@ static void test_wifi_to_json_buffer_too_small_fails(void)
     TEST_ASSERT_FALSE(settings_storage_wifi_to_json(&s, true, out, sizeof(out)));
 }
 
-/*
-    test runners
-*/
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
 
 void run_test_storage_settings_storage_wifi_from_json(void)
 {

@@ -1,8 +1,24 @@
-#include <unity.h>
+/**
+ * @file test_main.c
+ * @brief Native test entry point — runs all Unity test suites.
+ */
+
+//------------------------------------------------------------------------------
+// includes
+//------------------------------------------------------------------------------
 
 #include "test_api.h"
 
+#include <unity.h>
+
+//------------------------------------------------------------------------------
+// functions (implementation)
+//------------------------------------------------------------------------------
+
+/** @brief Unity required setup hook — unused. */
 void setUp(void) {}
+
+/** @brief Unity required teardown hook — unused. */
 void tearDown(void) {}
 
 int main(void)

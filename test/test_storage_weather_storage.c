@@ -1,16 +1,39 @@
-#include <unity.h>
+/**
+ * @file test_storage_weather_storage.c
+ * @brief Unit tests for weather_storage_validate_json(), weather_storage_compact_json(),
+ *        and weather_storage_measure_compact_json().
+ */
 
-#include <string.h>
+//------------------------------------------------------------------------------
+// includes
+//------------------------------------------------------------------------------
+#include "test_api.h"
+
 #include <stdbool.h>
 #include <stdlib.h>
-
-#include "test_api.h"
+#include <string.h>
+#include <unity.h>
 
 #include "weather_storage.h"
 
-/*
-    weather_storage_validate_json
-*/
+//------------------------------------------------------------------------------
+// private functions (prototypes)
+//------------------------------------------------------------------------------
+
+static void test_validate_json_object_success(void);
+static void test_validate_json_array_success(void);
+static void test_validate_json_number_success(void);
+static void test_validate_json_invalid_fails(void);
+static void test_validate_json_null_fails(void);
+
+static void test_measure_and_compact_json_success(void);
+static void test_compact_json_buffer_too_small_fails(void);
+static void test_compact_json_invalid_input_fails(void);
+static void test_measure_invalid_returns_zero(void);
+
+//------------------------------------------------------------------------------
+// private functions (implementation)
+//------------------------------------------------------------------------------
 
 static void test_validate_json_object_success(void)
 {
@@ -36,11 +59,6 @@ static void test_validate_json_null_fails(void)
 {
     TEST_ASSERT_FALSE(weather_storage_validate_json(NULL));
 }
-
-/*
-    weather_storage_compact_json
-    weather_storage_measure_compact_json
-*/
 
 static void test_measure_and_compact_json_success(void)
 {
@@ -76,12 +94,13 @@ static void test_compact_json_invalid_input_fails(void)
 
 static void test_measure_invalid_returns_zero(void)
 {
-    TEST_ASSERT_EQUAL_UINT32(0U, (uint32_t)weather_storage_measure_compact_json("{ this is not json }"));
+    TEST_ASSERT_EQUAL_UINT32(
+        0U, (uint32_t)weather_storage_measure_compact_json("{ this is not json }"));
 }
 
-/*
-    test runners
-*/
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
 
 void run_test_storage_weather_storage_validate_json(void)
 {
