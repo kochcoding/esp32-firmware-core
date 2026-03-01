@@ -1,17 +1,42 @@
-#include <unity.h>
-#include <string.h>
+/**
+ * @file test_storage_locations_storage.c
+ * @brief Unit tests for locations_storage_from_json(), locations_storage_to_json(),
+ *        and locations_storage_measure_json().
+ */
+
+//------------------------------------------------------------------------------
+// includes
+//------------------------------------------------------------------------------
+#include "test_api.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unity.h>
 
-#include "test_api.h"
-
-#include "locations_storage.h"
 #include "locations_model.h"
+#include "locations_storage.h"
 
-/*
-    helpers
-*/
+//------------------------------------------------------------------------------
+// private functions (prototypes)
+//------------------------------------------------------------------------------
+
+static void reset_model(locations_model_t *m);
+static size_t count_active(const locations_model_t *m);
+
+static void test_from_json_success(void);
+static void test_from_json_invalid_json_fails(void);
+static void test_from_json_missing_locations_array_fails(void);
+static void test_from_json_multiple_active_keeps_first_only(void);
+static void test_from_json_too_many_entries_fails(void);
+
+static void test_measure_and_to_json_success(void);
+static void test_to_json_buffer_too_small_fails(void);
+
+//------------------------------------------------------------------------------
+// private functions (implementation)
+//------------------------------------------------------------------------------
 
 static void reset_model(locations_model_t *m)
 {
@@ -36,10 +61,6 @@ static size_t count_active(const locations_model_t *m)
 
     return active;
 }
-
-/*
-    locations_storage_from_json
-*/
 
 static void test_from_json_success(void)
 {
@@ -83,14 +104,13 @@ static void test_from_json_missing_locations_array_fails(void)
 
 static void test_from_json_multiple_active_keeps_first_only(void)
 {
-    const char *json =
-        "{"
-        "  \"locations\": ["
-        "    {\"name\":\"A\",\"latitude\":1.0,\"longitude\":2.0,\"is_active\":true},"
-        "    {\"name\":\"B\",\"latitude\":3.0,\"longitude\":4.0,\"is_active\":true},"
-        "    {\"name\":\"C\",\"latitude\":5.0,\"longitude\":6.0,\"is_active\":true}"
-        "  ]"
-        "}";
+    const char *json = "{"
+                       "  \"locations\": ["
+                       "    {\"name\":\"A\",\"latitude\":1.0,\"longitude\":2.0,\"is_active\":true},"
+                       "    {\"name\":\"B\",\"latitude\":3.0,\"longitude\":4.0,\"is_active\":true},"
+                       "    {\"name\":\"C\",\"latitude\":5.0,\"longitude\":6.0,\"is_active\":true}"
+                       "  ]"
+                       "}";
 
     locations_model_t model;
     reset_model(&model);
@@ -116,8 +136,7 @@ static void test_from_json_too_many_entries_fails(void)
         pos += (size_t)snprintf(
             &json[pos], sizeof(json) - pos,
             "{\"name\":\"L%u\",\"latitude\":1.0,\"longitude\":2.0,\"is_active\":false}%s",
-            (unsigned)i,
-            (i == ((size_t)LOCATIONS_MODEL_MAX_NUMBER)) ? "" : ",");
+            (unsigned)i, (i == ((size_t)LOCATIONS_MODEL_MAX_NUMBER)) ? "" : ",");
         if (pos >= sizeof(json))
         {
             TEST_FAIL_MESSAGE("Test JSON buffer too small");
@@ -131,11 +150,6 @@ static void test_from_json_too_many_entries_fails(void)
 
     TEST_ASSERT_FALSE(locations_storage_from_json(json, &model));
 }
-
-/*
-    locations_storage_to_json
-    locations_storage_measure_json
-*/
 
 static void test_measure_and_to_json_success(void)
 {
@@ -177,9 +191,9 @@ static void test_to_json_buffer_too_small_fails(void)
     TEST_ASSERT_FALSE(locations_storage_to_json(&model, out, sizeof(out)));
 }
 
-/*
-    test runners
-*/
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
 
 void run_test_storage_locations_storage_from_json(void)
 {

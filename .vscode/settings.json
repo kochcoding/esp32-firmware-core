@@ -1,4 +1,8 @@
 {
   "cmake.configureOnOpen": false,
-  "cmake.buildDirectory": "${workspaceFolder}/build"
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "ms-vscode.cpptools",
+  "C_Cpp.formatting": "clangFormat",
+  "C_Cpp.clangFormatStyle": "file"
 }

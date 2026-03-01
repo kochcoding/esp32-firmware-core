@@ -1,3 +1,19 @@
+/**
+ * @file ui_assets.c
+ * @brief Embedded HTML UI assets compiled directly into the firmware image.
+ *
+ * @details
+ *  - UI_INDEX_HTML   — WiFi setup portal, served at GET /.
+ *  - UI_LOCATIONS_HTML — Location management UI, served at GET /locations.
+ *
+ * @note clang-format is disabled for this file to preserve the HTML string
+ *       literal formatting. The content is intentionally not reformatted.
+ */
+
+//------------------------------------------------------------------------------
+// private includes
+//------------------------------------------------------------------------------
+
 #include "ui/ui_assets.h"
 
 // clang-format off

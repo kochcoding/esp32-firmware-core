@@ -1,66 +1,106 @@
+/**
+ * @file nvs_helpers.c
+ * @brief Implementation of NVS JSON string storage helpers.
+ *
+ * @details
+ *  - All functions open and close the NVS handle within the same call.
+ *  - NVS handle is always closed on every exit path.
+ *  - Errors are propagated to the caller; only save errors are additionally logged.
+ */
+
+//------------------------------------------------------------------------------
+// private includes
+//------------------------------------------------------------------------------
 #include "app/nvs_helpers.h"
 
 #include <string.h>
-#include "nvs.h"
-#include "nvs_flash.h"
+
 #include "esp_log.h"
+
+#include "nvs.h"
+
+//------------------------------------------------------------------------------
+// private variables
+//------------------------------------------------------------------------------
 
 static const char *TAG = "nvs_helpers";
 
-esp_err_t nvs_load_json(const char *key, char *out_buf, size_t out_len)
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
+
+esp_err_t nvs_load_json(const char *key, char *out_buffer, size_t out_length)
 {
-    if (!key || !out_buf || out_len == 0)
+    if ((key == NULL) || (out_buffer == NULL) || (out_length == 0U))
+    {
         return ESP_ERR_INVALID_ARG;
+    }
 
     nvs_handle_t nvs;
-    esp_err_t err = nvs_open(NVS_NS_CFG, NVS_READONLY, &nvs);
-    if (err != ESP_OK)
-        return err;
+    esp_err_t error = nvs_open(NVS_NS_CFG, NVS_READONLY, &nvs);
+    if (error != ESP_OK)
+    {
+        return error;
+    }
 
-    size_t len = out_len;
-    err = nvs_get_str(nvs, key, out_buf, &len);
+    size_t len = out_length;
+    error = nvs_get_str(nvs, key, out_buffer, &len);
     nvs_close(nvs);
 
-    if (err == ESP_ERR_NVS_NOT_FOUND)
+    if (error == ESP_ERR_NVS_NOT_FOUND)
+    {
         return ESP_ERR_NOT_FOUND;
+    }
 
-    return err;
+    return error;
 }
 
 esp_err_t nvs_save_json(const char *key, const char *json)
 {
-    if (!key || !json)
+    if ((key == NULL) || (json == NULL))
+    {
         return ESP_ERR_INVALID_ARG;
+    }
 
     nvs_handle_t nvs;
-    esp_err_t err = nvs_open(NVS_NS_CFG, NVS_READWRITE, &nvs);
-    if (err != ESP_OK)
-        return err;
+    esp_err_t error = nvs_open(NVS_NS_CFG, NVS_READWRITE, &nvs);
+    if (error != ESP_OK)
+    {
+        return error;
+    }
 
-    err = nvs_set_str(nvs, key, json);
-    if (err == ESP_OK)
-        err = nvs_commit(nvs);
+    error = nvs_set_str(nvs, key, json);
+    if (error == ESP_OK)
+    {
+        error = nvs_commit(nvs);
+    }
 
     nvs_close(nvs);
 
-    if (err != ESP_OK)
-        ESP_LOGE(TAG, "nvs_save_json key='%s' failed: %s", key, esp_err_to_name(err));
+    if (error != ESP_OK)
+    {
+        ESP_LOGE(TAG, "nvs_save_json key='%s' failed: %s", key, esp_err_to_name(error));
+    }
 
-    return err;
+    return error;
 }
 
 esp_err_t nvs_erase_key_cfg(const char *key)
 {
-    if (!key)
+    if (key == NULL)
+    {
         return ESP_ERR_INVALID_ARG;
+    }
 
     nvs_handle_t nvs;
-    esp_err_t err = nvs_open(NVS_NS_CFG, NVS_READWRITE, &nvs);
-    if (err != ESP_OK)
-        return err;
+    esp_err_t error = nvs_open(NVS_NS_CFG, NVS_READWRITE, &nvs);
+    if (error != ESP_OK)
+    {
+        return error;
+    }
 
     (void)nvs_erase_key(nvs, key);
-    err = nvs_commit(nvs);
+    error = nvs_commit(nvs);
     nvs_close(nvs);
-    return err;
+    return error;
 }

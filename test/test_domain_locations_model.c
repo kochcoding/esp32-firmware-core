@@ -1,16 +1,64 @@
-#include <unity.h>
-#include <string.h>
-#include <stdio.h>
+/**
+ * @file test_domain_locations_model.c
+ * @brief Unit tests for locations_model_add(), locations_model_remove(),
+ *        locations_model_get_active(), and model invariants.
+ */
 
+//------------------------------------------------------------------------------
+// includes
+//------------------------------------------------------------------------------
 #include "test_api.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#include <unity.h>
 
 #include "locations_model.h"
 
+//------------------------------------------------------------------------------
+// variables
+//------------------------------------------------------------------------------
+
 static locations_model_t model;
 
-/*
-    helpers
-*/
+//------------------------------------------------------------------------------
+// private functions (prototypes)
+//------------------------------------------------------------------------------
+
+static void reset_model(void);
+static location_t make_loc(const char *name, double lat, double lon, bool active);
+static void assert_model_invariants(const locations_model_t *m);
+
+static void test_add_success(void);
+static void test_add_duplicate_fails(void);
+static void test_add_null_model_fails(void);
+static void test_add_null_location_fails(void);
+static void test_add_when_full_fails(void);
+static void test_add_duplicate_has_no_side_effects(void);
+
+static void test_remove_null_model_fails(void);
+static void test_remove_null_name_fails(void);
+static void test_remove_empty_name_fails(void);
+static void test_remove_from_empty_model_fails(void);
+static void test_remove_unknown_name_has_no_side_effects(void);
+static void test_remove_success_shifts_items(void);
+static void test_remove_active_clears_all_active_flags(void);
+static void test_remove_first_item_shifts_correctly(void);
+static void test_remove_last_item_does_not_shift_others(void);
+static void test_remove_single_item_results_in_empty_model(void);
+static void test_remove_inactive_keeps_existing_active(void);
+
+static void test_get_active_null_model_returns_null(void);
+static void test_get_active_empty_model_returns_null(void);
+static void test_get_active_none_active_returns_null(void);
+static void test_get_active_returns_first_active(void);
+
+static void test_sequence_add_remove_add_keeps_invariants(void);
+
+//------------------------------------------------------------------------------
+// private functions (implementation)
+//------------------------------------------------------------------------------
 
 static void reset_model(void)
 {
@@ -47,9 +95,6 @@ static void assert_model_invariants(const locations_model_t *m)
         }
     }
 }
-/*
-    locations_model_add
-*/
 
 static void test_add_success(void)
 {
@@ -93,7 +138,7 @@ static void test_add_when_full_fails(void)
     for (size_t i = 0U; i < (size_t)LOCATIONS_MODEL_MAX_NUMBER; i++)
     {
         location_t loc = {0};
-        // create unique names: "L0", "L1", ...
+        /* create unique names: "L0", "L1", ... */
         (void)snprintf(loc.name, sizeof(loc.name), "L%u", (unsigned)i);
         loc.latitude = (double)i;
         loc.longitude = (double)i;
@@ -104,13 +149,13 @@ static void test_add_when_full_fails(void)
 
     TEST_ASSERT_EQUAL_UINT32((uint32_t)LOCATIONS_MODEL_MAX_NUMBER, (uint32_t)model.count);
 
-    // one more must fails
+    /* one more must fail */
     location_t extra = make_loc("Overflow", 0.0, 0.0, false);
 
     bool result = locations_model_add(&model, &extra);
     TEST_ASSERT_FALSE(result);
 
-    // count must not change
+    /* count must not change */
     TEST_ASSERT_EQUAL_UINT32((uint32_t)LOCATIONS_MODEL_MAX_NUMBER, (uint32_t)model.count);
 }
 
@@ -123,22 +168,18 @@ static void test_add_duplicate_has_no_side_effects(void)
     TEST_ASSERT_TRUE(locations_model_add(&model, &loc1));
     TEST_ASSERT_EQUAL_UINT32(1U, model.count);
 
-    // snapshot existing stored entry
+    /* snapshot existing stored entry */
     location_t snapshot = model.items[0];
 
     TEST_ASSERT_FALSE(locations_model_add(&model, &loc2_same_name_different_data));
     TEST_ASSERT_EQUAL_UINT32(1U, model.count);
 
-    // ensure nothing got overwritten
+    /* ensure nothing got overwritten */
     TEST_ASSERT_EQUAL_STRING(snapshot.name, model.items[0].name);
     TEST_ASSERT_EQUAL_FLOAT((float)snapshot.latitude, (float)model.items[0].latitude);
     TEST_ASSERT_EQUAL_FLOAT((float)snapshot.longitude, (float)model.items[0].longitude);
     TEST_ASSERT_EQUAL_UINT8(snapshot.is_active, model.items[0].is_active);
 }
-
-/*
-    locations_model_remove
-*/
 
 static void test_remove_null_model_fails(void)
 {
@@ -209,7 +250,7 @@ static void test_remove_active_clears_all_active_flags(void)
     /* mark B active */
     model.items[1].is_active = true;
 
-    /* remove ative item */
+    /* remove active item */
     TEST_ASSERT_TRUE(locations_model_remove(&model, "B"));
 
     /* by design: if active removed, all remaining must be inactive */
@@ -286,10 +327,6 @@ static void test_remove_inactive_keeps_existing_active(void)
     TEST_ASSERT_EQUAL_STRING("B", active->name);
 }
 
-/*
-    locations_model_get_active
-*/
-
 static void test_get_active_null_model_returns_null(void)
 {
     const location_t *active = locations_model_get_active(NULL);
@@ -325,10 +362,6 @@ static void test_get_active_returns_first_active(void)
     TEST_ASSERT_EQUAL_STRING("A", active->name);
 }
 
-/*
-    invariant tests
-*/
-
 static void test_sequence_add_remove_add_keeps_invariants(void)
 {
     location_t a = make_loc("A", 1.0, 1.0, false);
@@ -357,9 +390,9 @@ static void test_sequence_add_remove_add_keeps_invariants(void)
     TEST_ASSERT_TRUE(locations_model_add(&model, &a));
 }
 
-/*
-    test runners
-*/
+//------------------------------------------------------------------------------
+// public functions
+//------------------------------------------------------------------------------
 
 void run_test_domain_locations_model_add(void)
 {
