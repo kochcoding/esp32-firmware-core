@@ -6,7 +6,7 @@
  *  - Intercepts OS-specific probe URLs (Android, iOS, Windows) and redirects
  *    them to the root UI via HTTP 302.
  *  - Installs a global 404 handler that redirects unknown paths to "/",
- *    except for /api/* routes which receive a JSON 404 response.
+ *    except for /api/... routes which receive a JSON 404 response.
  */
 
 //------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ static esp_err_t redirect_to_root(httpd_req_t *request);
 /**
  * @brief Global 404 error handler for the captive portal.
  *
- * Redirects all unmatched paths to "/" except /api/* routes,
+ * Redirects all unmatched paths to "/" except /api/... routes,
  * which receive a JSON 404 response to preserve API error contracts.
  *
  * @param[in] request HTTP request handle. Must not be NULL.
@@ -67,7 +67,7 @@ static esp_err_t redirect_to_root(httpd_req_t *request)
     return ESP_OK;
 }
 
-/* 404 handler: redirect everything EXCEPT /api/* (keep API 404 as JSON) */
+/* 404 handler: redirect everything EXCEPT /api/... routes (keep API 404 as JSON) */
 static esp_err_t captive_404_handler(httpd_req_t *request, httpd_err_code_t error)
 {
     (void)error;

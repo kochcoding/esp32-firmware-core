@@ -28,7 +28,7 @@ extern "C"
  *
  * Registers GET and HEAD handlers for common OS captive portal probe URLs
  * (Android, iOS, Windows) and installs a global 404 handler that redirects
- * unknown paths to "/" while preserving JSON error responses for /api/* routes.
+ * unknown paths to "/" while preserving JSON error responses for /api/... routes.
  *
  * @param[in] server HTTP server handle. Must not be NULL.
  */
